@@ -119,6 +119,12 @@
         hz.LATEST_UPDATE ; entry with the latest update wins.
     -->
     <merge-policy>hz.ADD_NEW_ENTRY</merge-policy>
+    
+    <map-store enabled="false">
+      <syncinterval>1</syncinterval>
+      <class-name>org.hazelcast.server.persistence.BerkeleyDBStore</class-name>
+      <write-delay-seconds>0</write-delay-seconds>
+    </map-store>
   </map>
   
     <!-- Add your own semaphore configurations here:
