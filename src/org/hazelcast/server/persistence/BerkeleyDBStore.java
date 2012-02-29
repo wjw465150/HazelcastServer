@@ -1,34 +1,64 @@
 package org.hazelcast.server.persistence;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.util.Collection;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import org.jboss.serial.io.JBossObjectInputStream;
+import org.jboss.serial.io.JBossObjectOutputStream;
+
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.MapLoaderLifecycleSupport;
 import com.hazelcast.core.MapStore;
-import com.sleepycat.collections.StoredMap;
 import com.sleepycat.je.CheckpointConfig;
+import com.sleepycat.je.Cursor;
 import com.sleepycat.je.Database;
 import com.sleepycat.je.DatabaseConfig;
+import com.sleepycat.je.DatabaseEntry;
 import com.sleepycat.je.Environment;
 import com.sleepycat.je.EnvironmentConfig;
+import com.sleepycat.je.LockMode;
+import com.sleepycat.je.OperationStatus;
 
+@SuppressWarnings("unchecked")
 public class BerkeleyDBStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K, V>, Runnable {
   private Environment _env;
   private Database _db; //数据库
 
-  private ScheduledExecutorService _scheduleSync = Executors.newSingleThreadScheduledExecutor(); //同步磁盘的Scheduled
+  private ScheduledExecutorService _scheduleSync; //同步磁盘的Scheduled
 
   private HazelcastInstance _hazelcastInstance;
   private Properties _properties;
   private String _mapName;
-  private Map<K, V> _map;
+
+  private Object entryToObject(DatabaseEntry entry) throws Exception {
+    int len = entry.getSize();
+    if (len == 0) {
+      return null;
+    } else {
+      ByteArrayInputStream bais = new ByteArrayInputStream(entry.getData());
+      JBossObjectInputStream ois = new JBossObjectInputStream(bais);
+      return ois.readObject();
+    }
+  }
+
+  private DatabaseEntry objectToEntry(Object object) throws Exception {
+    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    JBossObjectOutputStream oos = new JBossObjectOutputStream(baos);
+    oos.writeObject(object);
+
+    DatabaseEntry entry = new DatabaseEntry();
+    entry.setData(baos.toByteArray());
+    return entry;
+  }
 
   @Override
   public void init(HazelcastInstance hazelcastInstance, Properties properties, String mapName) {
@@ -39,7 +69,7 @@ public class BerkeleyDBStore<K, V> implements MapLoaderLifecycleSupport, MapStor
     if (_env == null) {
       EnvironmentConfig envConfig = new EnvironmentConfig();
       envConfig.setAllowCreate(true);
-      envConfig.setLocking(true);   //true时让Cleaner Thread自动启动,来清理废弃的数据库文件.
+      envConfig.setLocking(true); //true时让Cleaner Thread自动启动,来清理废弃的数据库文件.
       envConfig.setSharedCache(true);
       envConfig.setTransactional(false);
       envConfig.setCachePercent(10); //很重要,不合适的值会降低速度
@@ -61,25 +91,28 @@ public class BerkeleyDBStore<K, V> implements MapLoaderLifecycleSupport, MapStor
       _db = _env.openDatabase(null, _mapName, dbConfig);
     }
 
-    if (_map == null) {
-      ObjectBinding<K> keyBinding = new ObjectBinding<K>();
-      ObjectBinding<V> dataBinding = new ObjectBinding<V>();
-      this._map = new StoredMap<K, V>(_db, keyBinding, dataBinding, true);
+    if (_scheduleSync == null) {
+      int syncinterval = 3;
+      try {
+        syncinterval = Integer.parseInt(_properties.getProperty("syncinterval"));
+      } catch (Exception e) {
+        //e.printStackTrace();
+      }
+      _scheduleSync = Executors.newSingleThreadScheduledExecutor(); //同步磁盘的Scheduled
+      _scheduleSync.scheduleWithFixedDelay(this, 1, syncinterval, TimeUnit.SECONDS);
     }
-
-    int syncinterval = 3;
-    try {
-      syncinterval = Integer.parseInt(_properties.getProperty("syncinterval"));
-    } catch (Exception e) {
-      //e.printStackTrace();
-    }
-    _scheduleSync.scheduleWithFixedDelay(this, 1, syncinterval, TimeUnit.SECONDS);
     System.out.println(this.getClass().getCanonicalName() + ":" + _mapName + ":初始化完成!");
   }
 
   @Override
   public void destroy() {
-    _scheduleSync.shutdown();
+    if (_scheduleSync != null) {
+      try {
+        _scheduleSync.shutdown();
+      } finally {
+        _scheduleSync = null;
+      }
+    }
 
     if (_db != null) {
       try {
@@ -136,43 +169,82 @@ public class BerkeleyDBStore<K, V> implements MapLoaderLifecycleSupport, MapStor
 
   @Override
   public V load(K key) {
-    return this._map.get(key);
+    try {
+      DatabaseEntry keyEntry = objectToEntry(key);
+      DatabaseEntry valueEntry = new DatabaseEntry();
+      OperationStatus status = _db.get(null, keyEntry, valueEntry, LockMode.DEFAULT);
+      if (status == OperationStatus.SUCCESS) {
+        return (V) entryToObject(valueEntry);
+      } else {
+        return null;
+      }
+    } catch (Exception e) {
+      e.printStackTrace();
+      return null;
+    }
   }
 
   @Override
   public Map<K, V> loadAll(Collection<K> keys) {
     Map<K, V> map = new java.util.HashMap<K, V>(keys.size());
     for (K key : keys) {
-      map.put(key, this._map.get(key));
+      map.put(key, this.load(key));
     }
     return map;
   }
 
   @Override
   public Set<K> loadAllKeys() {
-    return this._map.keySet();
+    Set<K> keys = new java.util.HashSet<K>((int) _db.count());
+    Cursor cursor = null;
+    try {
+      cursor = _db.openCursor(null, null);
+      DatabaseEntry foundKey = new DatabaseEntry();
+      DatabaseEntry foundData = new DatabaseEntry();
+
+      while (cursor.getNext(foundKey, foundData, LockMode.DEFAULT) == OperationStatus.SUCCESS) {
+        keys.add((K) entryToObject(foundKey));
+      }
+    } catch (Exception e) {
+      e.printStackTrace();
+    } finally {
+      cursor.close();
+    }
+    return keys;
   }
 
   @Override
   public void delete(K key) {
-    this._map.remove(key);
+    try {
+      _db.delete(null, objectToEntry(key));
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
   }
 
   @Override
   public void deleteAll(Collection<K> keys) {
     for (K key : keys) {
-      this._map.remove(key);
+      this.delete(key);
     }
   }
 
   @Override
   public void store(K key, V value) {
-    this._map.put(key, value);
+    try {
+      DatabaseEntry keyEntry = objectToEntry(key);
+      DatabaseEntry valueEntry = objectToEntry(value);
+      _db.put(null, keyEntry, valueEntry);
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
   }
 
   @Override
   public void storeAll(Map<K, V> map) {
-    this._map.putAll(map);
+    for (Entry<K, V> entrys : map.entrySet()) {
+      this.store(entrys.getKey(), entrys.getValue());
+    }
   }
 
 }
