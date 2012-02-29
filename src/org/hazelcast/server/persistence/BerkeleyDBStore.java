@@ -39,7 +39,7 @@ public class BerkeleyDBStore<K, V> implements MapLoaderLifecycleSupport, MapStor
     if (_env == null) {
       EnvironmentConfig envConfig = new EnvironmentConfig();
       envConfig.setAllowCreate(true);
-      envConfig.setLocking(false);
+      envConfig.setLocking(true);   //true时让Cleaner Thread自动启动,来清理废弃的数据库文件.
       envConfig.setSharedCache(true);
       envConfig.setTransactional(false);
       envConfig.setCachePercent(10); //很重要,不合适的值会降低速度
@@ -134,7 +134,6 @@ public class BerkeleyDBStore<K, V> implements MapLoaderLifecycleSupport, MapStor
     }
   }
 
-  @SuppressWarnings("unchecked")
   @Override
   public V load(K key) {
     return this._map.get(key);
@@ -161,9 +160,8 @@ public class BerkeleyDBStore<K, V> implements MapLoaderLifecycleSupport, MapStor
 
   @Override
   public void deleteAll(Collection<K> keys) {
-    Map<K, V> map = new java.util.HashMap<K, V>(keys.size());
     for (K key : keys) {
-      map.remove(key);
+      this._map.remove(key);
     }
   }
 

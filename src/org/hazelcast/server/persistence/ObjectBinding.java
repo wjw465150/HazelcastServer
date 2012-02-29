@@ -34,7 +34,6 @@ public class ObjectBinding<E> implements EntryBinding<E> {
   @SuppressWarnings("unchecked")
   @Override
   public E entryToObject(DatabaseEntry entry) {
-
     int len = entry.getSize();
     if (len == 0) {
       return null;

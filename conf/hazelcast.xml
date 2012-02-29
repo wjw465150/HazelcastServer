@@ -120,6 +120,7 @@
     -->
     <merge-policy>hz.ADD_NEW_ENTRY</merge-policy>
     
+    <!-- Persistence -->
     <map-store enabled="false">
       <syncinterval>1</syncinterval>
       <class-name>org.hazelcast.server.persistence.BerkeleyDBStore</class-name>
