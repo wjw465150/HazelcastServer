@@ -4,6 +4,10 @@
            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <properties>
     <property name="hazelcast.jmx">false</property>
+    <property name="hazelcast.version.check.enabled">false</property>
+    <property name="hazelcast.mancenter.enabled">false</property>
+    <property name="hazelcast.memcache.enabled">false</property>
+    <property name="hazelcast.rest.enabled">false</property>
   </properties>
   
   <group>

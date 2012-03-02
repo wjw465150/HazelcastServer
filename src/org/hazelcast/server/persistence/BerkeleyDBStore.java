@@ -11,6 +11,7 @@ import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
 
 import org.jboss.serial.io.JBossObjectInputStream;
 import org.jboss.serial.io.JBossObjectOutputStream;
@@ -18,6 +19,8 @@ import org.jboss.serial.io.JBossObjectOutputStream;
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.MapLoaderLifecycleSupport;
 import com.hazelcast.core.MapStore;
+import com.hazelcast.logging.ILogger;
+import com.hazelcast.logging.Logger;
 import com.sleepycat.je.CheckpointConfig;
 import com.sleepycat.je.Cursor;
 import com.sleepycat.je.Database;
@@ -30,6 +33,8 @@ import com.sleepycat.je.OperationStatus;
 
 @SuppressWarnings("unchecked")
 public class BerkeleyDBStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K, V>, Runnable {
+  private final ILogger _logger = Logger.getLogger(BerkeleyDBStore.class.getName());
+
   private Environment _env;
   private Database _db; //数据库
 
@@ -96,7 +101,7 @@ public class BerkeleyDBStore<K, V> implements MapLoaderLifecycleSupport, MapStor
       try {
         syncinterval = Integer.parseInt(_properties.getProperty("syncinterval"));
       } catch (Exception e) {
-        //e.printStackTrace();
+        _logger.log(Level.WARNING, e.getMessage(), e);
       }
       _scheduleSync = Executors.newSingleThreadScheduledExecutor(); //同步磁盘的Scheduled
       _scheduleSync.scheduleWithFixedDelay(this, 1, syncinterval, TimeUnit.SECONDS);
@@ -118,13 +123,13 @@ public class BerkeleyDBStore<K, V> implements MapLoaderLifecycleSupport, MapStor
       try {
         _db.sync();
       } catch (Throwable ex) {
-        ex.printStackTrace();
+        _logger.log(Level.WARNING, ex.getMessage(), ex);
       }
 
       try {
         _db.close();
       } catch (Throwable ex) {
-        ex.printStackTrace();
+        _logger.log(Level.WARNING, ex.getMessage(), ex);
       } finally {
         _db = null;
       }
@@ -142,13 +147,13 @@ public class BerkeleyDBStore<K, V> implements MapLoaderLifecycleSupport, MapStor
           _env.checkpoint(force);
         }
       } catch (Throwable ex) {
-        ex.printStackTrace();
+        _logger.log(Level.WARNING, ex.getMessage(), ex);
       }
 
       try {
         _env.close();
       } catch (Throwable ex) {
-        ex.printStackTrace();
+        _logger.log(Level.WARNING, ex.getMessage(), ex);
       } finally {
         _env = null;
       }
@@ -163,7 +168,7 @@ public class BerkeleyDBStore<K, V> implements MapLoaderLifecycleSupport, MapStor
     try {
       _db.sync();
     } catch (Throwable ex) {
-      ex.printStackTrace();
+      _logger.log(Level.SEVERE, ex.getMessage(), ex);
     }
   }
 
@@ -179,7 +184,7 @@ public class BerkeleyDBStore<K, V> implements MapLoaderLifecycleSupport, MapStor
         return null;
       }
     } catch (Exception e) {
-      e.printStackTrace();
+      _logger.log(Level.SEVERE, e.getMessage(), e);
       return null;
     }
   }
@@ -206,7 +211,7 @@ public class BerkeleyDBStore<K, V> implements MapLoaderLifecycleSupport, MapStor
         keys.add((K) entryToObject(foundKey));
       }
     } catch (Exception e) {
-      e.printStackTrace();
+      _logger.log(Level.SEVERE, e.getMessage(), e);
     } finally {
       cursor.close();
     }
@@ -218,7 +223,7 @@ public class BerkeleyDBStore<K, V> implements MapLoaderLifecycleSupport, MapStor
     try {
       _db.delete(null, objectToEntry(key));
     } catch (Exception e) {
-      e.printStackTrace();
+      _logger.log(Level.SEVERE, e.getMessage(), e);
     }
   }
 
@@ -236,7 +241,7 @@ public class BerkeleyDBStore<K, V> implements MapLoaderLifecycleSupport, MapStor
       DatabaseEntry valueEntry = objectToEntry(value);
       _db.put(null, keyEntry, valueEntry);
     } catch (Exception e) {
-      e.printStackTrace();
+      _logger.log(Level.SEVERE, e.getMessage(), e);
     }
   }
 
