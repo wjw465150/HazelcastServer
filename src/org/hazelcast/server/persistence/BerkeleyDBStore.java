@@ -13,8 +13,13 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 
-import org.jboss.serial.io.JBossObjectInputStream;
-import org.jboss.serial.io.JBossObjectOutputStream;
+import org.jboss.marshalling.ByteInput;
+import org.jboss.marshalling.ByteOutput;
+import org.jboss.marshalling.Marshaller;
+import org.jboss.marshalling.MarshallerFactory;
+import org.jboss.marshalling.Marshalling;
+import org.jboss.marshalling.MarshallingConfiguration;
+import org.jboss.marshalling.Unmarshaller;
 
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.MapLoaderLifecycleSupport;
@@ -35,6 +40,9 @@ import com.sleepycat.je.OperationStatus;
 public class BerkeleyDBStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K, V>, Runnable {
   private final ILogger _logger = Logger.getLogger(BerkeleyDBStore.class.getName());
 
+  private static final MarshallerFactory _marshallerFactory = Marshalling.getProvidedMarshallerFactory("river");;
+  private static final MarshallingConfiguration _marshallingConfiguration = new MarshallingConfiguration();
+
   private Environment _env;
   private Database _db; //Êý¾Ý¿â
 
@@ -49,16 +57,25 @@ public class BerkeleyDBStore<K, V> implements MapLoaderLifecycleSupport, MapStor
     if (len == 0) {
       return null;
     } else {
+      Unmarshaller unMarshaller = _marshallerFactory.createUnmarshaller(_marshallingConfiguration);
+
       ByteArrayInputStream bais = new ByteArrayInputStream(entry.getData());
-      JBossObjectInputStream ois = new JBossObjectInputStream(bais);
-      return ois.readObject();
+      ByteInput byteInput = Marshalling.createByteInput(bais);
+      unMarshaller.start(byteInput);
+      Object obj = unMarshaller.readObject();
+      unMarshaller.finish();
+      return obj;
     }
   }
 
   private DatabaseEntry objectToEntry(Object object) throws Exception {
-    ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    JBossObjectOutputStream oos = new JBossObjectOutputStream(baos);
-    oos.writeObject(object);
+    Marshaller marshaller = _marshallerFactory.createMarshaller(_marshallingConfiguration);
+
+    ByteArrayOutputStream baos = new ByteArrayOutputStream(1024);
+    ByteOutput byteOutput = Marshalling.createByteOutput(baos);
+    marshaller.start(byteOutput);
+    marshaller.writeObject(object);
+    marshaller.finish();
 
     DatabaseEntry entry = new DatabaseEntry();
     entry.setData(baos.toByteArray());
