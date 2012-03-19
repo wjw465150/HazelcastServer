@@ -1,0 +1,15 @@
+HazelcastServer是基于开源项目Hazelcast(https://code.google.com/p/hazelcast/)一个高度可扩展的基于P2P的云计算平台。特性包括：
+		提供java.util.{Queue, Set, List, Map}分布式实现。
+		提供java.util.concurrency.locks.Lock分布式全局锁实现。
+		提供java.util.concurrent.ExecutorService分布式实现。
+		提供用于一对多关系的分布式MultiMap。
+		提供用于发布/订阅的分布式Topic（主题）。
+		通过JCA与J2EE容器集成和事务支持。
+		提供用于安全集群的Socket层加密。
+		为Hibernate提供二级缓存Provider 。
+		通过JMX监控和管理集群。
+		支持动态HTTP Session集群。
+		利用备份实现动态分割。
+		支持动态故障恢复,动态节点添加,删除。
+		支持内存数据的持久化存储,保证365天的无故障运行
+		高达3万/秒的快速存取.

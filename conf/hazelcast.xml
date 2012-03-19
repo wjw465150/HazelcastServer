@@ -25,7 +25,8 @@
         <multicast-port>54327</multicast-port>
       </multicast>
       <tcp-ip enabled="false">
-        <interface>127.0.0.1</interface>
+        <conn-timeout-seconds>60</conn-timeout-seconds>
+        <interface>127.0.0.1:5701</interface>
       </tcp-ip>
       <aws enabled="false">
         <access-key>my-access-key</access-key>
