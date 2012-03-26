@@ -46,6 +46,7 @@ public class BerkeleyDBStore<K, V> implements MapLoaderLifecycleSupport, MapStor
   private Environment _env;
   private Database _db; //数据库
 
+  private int _syncinterval; //同步磁盘间隔,秒.
   private ScheduledExecutorService _scheduleSync; //同步磁盘的Scheduled
 
   private HazelcastInstance _hazelcastInstance;
@@ -114,14 +115,16 @@ public class BerkeleyDBStore<K, V> implements MapLoaderLifecycleSupport, MapStor
     }
 
     if (_scheduleSync == null) {
-      int syncinterval = 3;
       try {
-        syncinterval = Integer.parseInt(_properties.getProperty("syncinterval"));
+        _syncinterval = Integer.parseInt(_properties.getProperty("syncinterval"));
       } catch (Exception e) {
+        _syncinterval = 3;
         _logger.log(Level.WARNING, e.getMessage(), e);
       }
-      _scheduleSync = Executors.newSingleThreadScheduledExecutor(); //同步磁盘的Scheduled
-      _scheduleSync.scheduleWithFixedDelay(this, 1, syncinterval, TimeUnit.SECONDS);
+      if (_syncinterval > 0) {
+        _scheduleSync = Executors.newSingleThreadScheduledExecutor(); //同步磁盘的Scheduled
+        _scheduleSync.scheduleWithFixedDelay(this, 1, _syncinterval, TimeUnit.SECONDS);
+      }
     }
     System.out.println(this.getClass().getCanonicalName() + ":" + _mapName + ":初始化完成!");
   }
@@ -239,6 +242,9 @@ public class BerkeleyDBStore<K, V> implements MapLoaderLifecycleSupport, MapStor
   public void delete(K key) {
     try {
       _db.delete(null, objectToEntry(key));
+      if (_syncinterval == 0) {
+        _db.sync();
+      }
     } catch (Exception e) {
       _logger.log(Level.SEVERE, e.getMessage(), e);
     }
@@ -249,6 +255,9 @@ public class BerkeleyDBStore<K, V> implements MapLoaderLifecycleSupport, MapStor
     for (K key : keys) {
       this.delete(key);
     }
+    if (_syncinterval == 0) {
+      _db.sync();
+    }
   }
 
   @Override
@@ -257,6 +266,9 @@ public class BerkeleyDBStore<K, V> implements MapLoaderLifecycleSupport, MapStor
       DatabaseEntry keyEntry = objectToEntry(key);
       DatabaseEntry valueEntry = objectToEntry(value);
       _db.put(null, keyEntry, valueEntry);
+      if (_syncinterval == 0) {
+        _db.sync();
+      }
     } catch (Exception e) {
       _logger.log(Level.SEVERE, e.getMessage(), e);
     }
@@ -266,6 +278,9 @@ public class BerkeleyDBStore<K, V> implements MapLoaderLifecycleSupport, MapStor
   public void storeAll(Map<K, V> map) {
     for (Entry<K, V> entrys : map.entrySet()) {
       this.store(entrys.getKey(), entrys.getValue());
+    }
+    if (_syncinterval == 0) {
+      _db.sync();
     }
   }
 
