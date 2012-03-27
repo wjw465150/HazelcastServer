@@ -49,7 +49,7 @@
   <partition-group enabled="false"/>
 
   <executor-service>
-    <core-pool-size>100</core-pool-size>
+    <core-pool-size>50</core-pool-size>
     <max-pool-size>200</max-pool-size>
     <keep-alive-seconds>60</keep-alive-seconds>
   </executor-service>
