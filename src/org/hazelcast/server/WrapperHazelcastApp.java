@@ -8,7 +8,7 @@ public class WrapperHazelcastApp extends WrapperSimpleApp {
   public Integer start(String[] args) {
     Integer result = super.start(args);
     
-    WrapperManager.log(WrapperManager.WRAPPER_LOG_LEVEL_FATAL, "Started HazelcastServerApp!");
+    WrapperManager.log(WrapperManager.WRAPPER_LOG_LEVEL_FATAL, "Started Wrapper HazelcastServer!");
 
     return result;
   }
@@ -17,7 +17,7 @@ public class WrapperHazelcastApp extends WrapperSimpleApp {
   public int stop(int exitCode) {
     int result = super.stop(exitCode);
 
-    WrapperManager.log(WrapperManager.WRAPPER_LOG_LEVEL_FATAL, "Stoped HazelcastServerApp!");
+    WrapperManager.log(WrapperManager.WRAPPER_LOG_LEVEL_FATAL, "Stoped Wrapper HazelcastServer!");
 
     return result;
   }

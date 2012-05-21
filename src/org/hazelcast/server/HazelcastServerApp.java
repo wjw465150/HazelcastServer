@@ -5,6 +5,7 @@ import java.io.IOException;
 
 import org.apache.log4j.PropertyConfigurator;
 import org.apache.log4j.xml.DOMConfigurator;
+import org.tanukisoftware.wrapper.WrapperManager;
 
 import com.hazelcast.config.ClasspathXmlConfig;
 import com.hazelcast.core.Hazelcast;
@@ -76,7 +77,10 @@ public class HazelcastServerApp {
       
       _hazelcastInstance = Hazelcast.newHazelcastInstance(new ClasspathXmlConfig(CONF_NAME));
 
-      System.out.println("Started HazelcastServerApp!");
+      if (!WrapperManager.isControlledByNativeWrapper()) {
+        System.out.println("Started Standalone HazelcastServer!");
+      }
+      
       return true;
     } catch (Exception e) {
       _hazelcastInstance = null;
@@ -89,7 +93,9 @@ public class HazelcastServerApp {
     try {
       Hazelcast.shutdownAll();
 
-      System.out.println("Stoped HazelcastServerApp!");
+      if (!WrapperManager.isControlledByNativeWrapper()) {
+        System.out.println("Stoped Standalone HazelcastServer!");
+      }
       return true;
     } catch (Exception e) {
       e.printStackTrace();
