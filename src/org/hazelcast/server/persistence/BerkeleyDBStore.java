@@ -98,7 +98,7 @@ public class BerkeleyDBStore<K, V> implements MapLoaderLifecycleSupport, MapStor
       envConfig.setCachePercent(10); //很重要,不合适的值会降低速度
       envConfig.setConfigParam(EnvironmentConfig.LOG_FILE_MAX, "104857600"); //单个log日志文件尺寸是100M
 
-      File file = new File(System.getProperty("user.dir", ".") + "/db/");
+      File file = new File(System.getProperty("user.dir", ".") + "/db/" + (new MD5()).getMD5ofStr(mapName));
       if (!file.exists() && !file.mkdirs()) {
         throw new RuntimeException("Can not create:" + System.getProperty("user.dir", ".") + "/db/");
       }
