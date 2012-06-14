@@ -4,6 +4,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
@@ -43,8 +44,24 @@ public class BerkeleyDBStore<K, V> implements MapLoaderLifecycleSupport, MapStor
   private static final MarshallerFactory _marshallerFactory = Marshalling.getProvidedMarshallerFactory("river");;
   private static final MarshallingConfiguration _marshallingConfiguration = new MarshallingConfiguration();
 
-  private Environment _env;
   private Database _db; //数据库
+  private static Environment _env;
+  private static Map<String, Database> _dbMap = new HashMap<String, Database>(); //数据库Map,key是_mapName,value是Database.
+  static {
+    EnvironmentConfig envConfig = new EnvironmentConfig();
+    envConfig.setAllowCreate(true);
+    envConfig.setLocking(true); //true时让Cleaner Thread自动启动,来清理废弃的数据库文件.
+    envConfig.setSharedCache(true);
+    envConfig.setTransactional(false);
+    envConfig.setCachePercent(10); //很重要,不合适的值会降低速度
+    envConfig.setConfigParam(EnvironmentConfig.LOG_FILE_MAX, "104857600"); //单个log日志文件尺寸是100M
+
+    File file = new File(System.getProperty("user.dir", ".") + "/db/");
+    if (!file.exists() && !file.mkdirs()) {
+      throw new RuntimeException("Can not create:" + System.getProperty("user.dir", ".") + "/db/");
+    }
+    _env = new Environment(file, envConfig);
+  }
 
   private int _syncinterval; //同步磁盘间隔,秒.
   private ScheduledExecutorService _scheduleSync; //同步磁盘的Scheduled
@@ -89,30 +106,13 @@ public class BerkeleyDBStore<K, V> implements MapLoaderLifecycleSupport, MapStor
     _properties = properties;
     _mapName = mapName;
 
-    if (_env == null) {
-      EnvironmentConfig envConfig = new EnvironmentConfig();
-      envConfig.setAllowCreate(true);
-      envConfig.setLocking(true); //true时让Cleaner Thread自动启动,来清理废弃的数据库文件.
-      envConfig.setSharedCache(true);
-      envConfig.setTransactional(false);
-      envConfig.setCachePercent(10); //很重要,不合适的值会降低速度
-      envConfig.setConfigParam(EnvironmentConfig.LOG_FILE_MAX, "104857600"); //单个log日志文件尺寸是100M
-
-      File file = new File(System.getProperty("user.dir", ".") + "/db/" + (new MD5()).getMD5ofStr(mapName));
-      if (!file.exists() && !file.mkdirs()) {
-        throw new RuntimeException("Can not create:" + System.getProperty("user.dir", ".") + "/db/");
-      }
-      _env = new Environment(file, envConfig);
-    }
-
-    if (_db == null) {
-      DatabaseConfig dbConfig = new DatabaseConfig();
-      dbConfig.setAllowCreate(true);
-      dbConfig.setDeferredWrite(true); //延迟写
-      dbConfig.setSortedDuplicates(false);
-      dbConfig.setTransactional(false);
-      _db = _env.openDatabase(null, _mapName, dbConfig);
-    }
+    DatabaseConfig dbConfig = new DatabaseConfig();
+    dbConfig.setAllowCreate(true);
+    dbConfig.setDeferredWrite(true); //延迟写
+    dbConfig.setSortedDuplicates(false);
+    dbConfig.setTransactional(false);
+    _db = _env.openDatabase(null, _mapName, dbConfig);
+    _dbMap.put(_mapName, _db);
 
     if (_scheduleSync == null) {
       try {
@@ -152,10 +152,12 @@ public class BerkeleyDBStore<K, V> implements MapLoaderLifecycleSupport, MapStor
         _logger.log(Level.WARNING, ex.getMessage(), ex);
       } finally {
         _db = null;
+        _dbMap.remove(_mapName);
       }
+      System.out.println(this.getClass().getCanonicalName() + ":" + _mapName + ":销毁完成!");
     }
 
-    if (_env != null) {
+    if (_dbMap.size() == 0) {
       try {
         boolean anyCleaned = false;
         while (_env.cleanLog() > 0) {
@@ -177,9 +179,9 @@ public class BerkeleyDBStore<K, V> implements MapLoaderLifecycleSupport, MapStor
       } finally {
         _env = null;
       }
+      System.out.println(this.getClass().getCanonicalName() + ":BerkeleyDB数据库关闭!");
     }
 
-    System.out.println(this.getClass().getCanonicalName() + ":" + _mapName + ":销毁完成!");
   }
 
   @Override
