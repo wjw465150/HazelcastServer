@@ -18,7 +18,10 @@
 # These settings can be modified to fit the needs of your application
 # Optimized for use with version 3.5.9 of the Wrapper.
 
-export JAVA_HOME=/usr/java/default
+if [ "$JAVA_HOME" = "" ]
+then
+  export JAVA_HOME=/usr/java/default
+fi
 export PATH=$JAVA_HOME/bin:$PATH
 
 # Application
