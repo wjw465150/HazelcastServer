@@ -13,6 +13,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 
 import com.hazelcast.core.HazelcastInstance;
+import com.hazelcast.core.IMap;
 import com.hazelcast.core.MapLoaderLifecycleSupport;
 import com.hazelcast.core.MapStore;
 import com.hazelcast.logging.ILogger;
@@ -100,7 +101,17 @@ public class BerkeleyDBStore<K, V> implements MapLoaderLifecycleSupport, MapStor
         _scheduleSync.scheduleWithFixedDelay(this, 1, _syncinterval, TimeUnit.SECONDS);
       }
     }
-    System.out.println(this.getClass().getCanonicalName() + ":" + _mapName + ":初始化完成!");
+    _logger.log(Level.INFO, this.getClass().getCanonicalName() + ":" + _mapName + ":count:" + _db.count());
+    _logger.log(Level.INFO, this.getClass().getCanonicalName() + ":" + _mapName + ":初始化完成!");
+
+    //预先把数据加载进Hazelcast集群中
+    IMap<K, V> map = _hazelcastInstance.getMap(mapName);
+    Set<K> keySet = privateLoadAllKeys();
+    for (K key : keySet) {
+      map.putTransient(key, load(key), 0, TimeUnit.SECONDS);
+    }
+    _logger.log(Level.INFO, this.getClass().getCanonicalName() + ":" + _mapName + ":预先加载数据完成!");
+
   }
 
   @Override
@@ -120,6 +131,7 @@ public class BerkeleyDBStore<K, V> implements MapLoaderLifecycleSupport, MapStor
         _logger.log(Level.WARNING, ex.getMessage(), ex);
       }
 
+      _logger.log(Level.INFO, this.getClass().getCanonicalName() + ":" + _mapName + ":count:" + _db.count());
       try {
         _db.close();
       } catch (Throwable ex) {
@@ -128,7 +140,7 @@ public class BerkeleyDBStore<K, V> implements MapLoaderLifecycleSupport, MapStor
         _db = null;
         _dbMap.remove(_mapName);
       }
-      System.out.println(this.getClass().getCanonicalName() + ":" + _mapName + ":销毁完成!");
+      _logger.log(Level.INFO, this.getClass().getCanonicalName() + ":" + _mapName + ":销毁完成!");
     }
 
     if (_dbMap.size() == 0) {
@@ -153,7 +165,7 @@ public class BerkeleyDBStore<K, V> implements MapLoaderLifecycleSupport, MapStor
       } finally {
         _env = null;
       }
-      System.out.println(this.getClass().getCanonicalName() + ":BerkeleyDB数据库关闭!");
+      _logger.log(Level.INFO, this.getClass().getCanonicalName() + ":BerkeleyDB数据库关闭!");
     }
 
   }
@@ -183,35 +195,6 @@ public class BerkeleyDBStore<K, V> implements MapLoaderLifecycleSupport, MapStor
       _logger.log(Level.SEVERE, e.getMessage(), e);
       return null;
     }
-  }
-
-  @Override
-  public Map<K, V> loadAll(Collection<K> keys) {
-    Map<K, V> map = new java.util.HashMap<K, V>(keys.size());
-    for (K key : keys) {
-      map.put(key, this.load(key));
-    }
-    return map;
-  }
-
-  @Override
-  public Set<K> loadAllKeys() {
-    Set<K> keys = new java.util.HashSet<K>((int) _db.count());
-    Cursor cursor = null;
-    try {
-      cursor = _db.openCursor(null, null);
-      DatabaseEntry foundKey = new DatabaseEntry();
-      DatabaseEntry foundData = new DatabaseEntry();
-
-      while (cursor.getNext(foundKey, foundData, LockMode.DEFAULT) == OperationStatus.SUCCESS) {
-        keys.add((K) entryToObject(foundKey));
-      }
-    } catch (Exception e) {
-      _logger.log(Level.SEVERE, e.getMessage(), e);
-    } finally {
-      cursor.close();
-    }
-    return keys;
   }
 
   @Override
@@ -260,4 +243,47 @@ public class BerkeleyDBStore<K, V> implements MapLoaderLifecycleSupport, MapStor
     }
   }
 
+  @Override
+  public Map<K, V> loadAll(Collection<K> keys) {
+    //return privateLoadAll(keys);
+
+    return null;
+  }
+
+  private Map<K, V> privateLoadAll(Collection<K> keys) {
+    Map<K, V> map = new java.util.HashMap<K, V>(keys.size());
+    for (K key : keys) {
+      map.put(key, this.load(key));
+    }
+    return map;
+  }
+
+  @Override
+  public Set<K> loadAllKeys() {
+    //return privateLoadAllKeys();
+
+    return null;
+  }
+
+  private Set<K> privateLoadAllKeys() {
+    Set<K> keys = new java.util.HashSet<K>((int) _db.count());
+    Cursor cursor = null;
+    try {
+      cursor = _db.openCursor(null, null);
+      DatabaseEntry foundKey = new DatabaseEntry();
+      DatabaseEntry foundData = new DatabaseEntry();
+
+      while (cursor.getNext(foundKey, foundData, LockMode.DEFAULT) == OperationStatus.SUCCESS) {
+        keys.add((K) entryToObject(foundKey));
+      }
+    } catch (Exception e) {
+      _logger.log(Level.SEVERE, e.getMessage(), e);
+    } finally {
+      cursor.close();
+    }
+
+    _logger.log(Level.INFO, this.getClass().getCanonicalName() + ":" + _mapName + ":loadAllKeys:" + keys.size());
+
+    return keys;
+  }
 }
