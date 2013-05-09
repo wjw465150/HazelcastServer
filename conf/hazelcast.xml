@@ -10,6 +10,7 @@
     <property name="hazelcast.memcache.enabled">false</property>
     <property name="hazelcast.rest.enabled">false</property>
     <property name="hazelcast.executor.client.thread.count">100</property>
+    <property name="hazelcast.max.operation.timeout">120000</property>
   </properties>
 
   <group>
