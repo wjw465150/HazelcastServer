@@ -210,7 +210,7 @@
     <!-- Persistence -->
     <map-store enabled="true">
       <properties>
-        <property name="syncinterval">0</property>
+        <property name="syncinterval">1</property> <!-- 同步到磁盘的时间间隔(秒),0代表立即同步 -->
       </properties>
       <class-name>org.hazelcast.server.persistence.BerkeleyDBStore</class-name>
       <write-delay-seconds>0</write-delay-seconds>
