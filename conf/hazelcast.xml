@@ -12,6 +12,7 @@
     <property name="hazelcast.rest.enabled">false</property>
     <property name="hazelcast.executor.client.thread.count">100</property>
     <property name="hazelcast.max.operation.timeout">120000</property>
+    <property name="hazelcast.wait.seconds.before.join">0</property> 
   </properties>
 
   <group>
@@ -30,7 +31,8 @@
       </multicast>
       <tcp-ip enabled="false">
         <conn-timeout-seconds>60</conn-timeout-seconds>
-        <interface>127.0.0.1:5701</interface>
+        <interface>192.168.0.1:5701</interface>
+        <interface>192.168.0.2:5702</interface>
       </tcp-ip>
       <aws enabled="false">
         <access-key>my-access-key</access-key>
