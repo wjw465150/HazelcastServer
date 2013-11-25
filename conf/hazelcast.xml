@@ -141,7 +141,7 @@
       <properties>
         <property name="syncinterval">1</property>
       </properties>
-      <class-name>org.hazelcast.server.persistence.BerkeleyDBStore</class-name>
+      <class-name>org.hazelcast.server.persistence.LevelDBStore</class-name>
       <write-delay-seconds>0</write-delay-seconds>
     </map-store>
   </map>
@@ -210,9 +210,9 @@
     <!-- Persistence -->
     <map-store enabled="true">
       <properties>
-        <property name="syncinterval">1</property> <!-- 同步到磁盘的时间间隔(秒),0代表立即同步 -->
+        <property name="syncinterval">1</property>
       </properties>
-      <class-name>org.hazelcast.server.persistence.BerkeleyDBStore</class-name>
+      <class-name>org.hazelcast.server.persistence.LevelDBStore</class-name>
       <write-delay-seconds>0</write-delay-seconds>
     </map-store>
   </map>
