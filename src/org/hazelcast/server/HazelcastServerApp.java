@@ -2,12 +2,14 @@ package org.hazelcast.server;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Map;
 
 import org.apache.log4j.PropertyConfigurator;
 import org.apache.log4j.xml.DOMConfigurator;
 import org.tanukisoftware.wrapper.WrapperManager;
 
 import com.hazelcast.config.ClasspathXmlConfig;
+import com.hazelcast.config.MapConfig;
 import com.hazelcast.core.Hazelcast;
 import com.hazelcast.core.HazelcastInstance;
 
@@ -34,7 +36,7 @@ public class HazelcastServerApp {
       if (!file.exists() && !file.mkdirs()) {
         throw new IOException("Can not create:" + System.getProperty("user.dir", ".") + "/db/");
       }
-      
+
       String logPath = System.getProperty("user.dir", ".") + "/conf/log4j.xml";
       if (logPath.toLowerCase().endsWith(".xml")) {
         DOMConfigurator.configure(logPath);
@@ -71,14 +73,24 @@ public class HazelcastServerApp {
 
   public boolean doStart() {
     try {
-      if(_hazelcastInstance != null) {
+      if (_hazelcastInstance != null) {
         doStop();
       }
-      
+
       _hazelcastInstance = Hazelcast.newHazelcastInstance(new ClasspathXmlConfig(CONF_NAME));
 
       if (!WrapperManager.isControlledByNativeWrapper()) {
         System.out.println("Started Standalone HazelcastServer!");
+      }
+
+      //预加载是持久化的Map
+      Map<String, MapConfig> mmp = _hazelcastInstance.getConfig().getMapConfigs();
+      for (String key : mmp.keySet()) {
+        MapConfig mconf = mmp.get(key);
+        if (mconf.getMapStoreConfig().isEnabled()) {
+          System.out.println("Load Map from MapStore:" + key);
+          _hazelcastInstance.getMap(key).size();
+        }
       }
       
       return true;

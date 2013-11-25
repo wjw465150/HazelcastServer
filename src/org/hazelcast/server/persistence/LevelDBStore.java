@@ -1,9 +1,7 @@
 package org.hazelcast.server.persistence;
 
 import java.io.File;
-import java.io.UnsupportedEncodingException;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
@@ -14,6 +12,7 @@ import java.util.logging.Level;
 import org.fusesource.leveldbjni.JniDBFactory;
 import org.iq80.leveldb.CompressionType;
 import org.iq80.leveldb.DB;
+import org.iq80.leveldb.DBIterator;
 import org.iq80.leveldb.Options;
 
 import com.hazelcast.core.HazelcastInstance;
@@ -30,7 +29,6 @@ public class LevelDBStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
 
   private DB _db; //数据库
   private static Options _options;
-  private static Map<String, DB> _dbMap = new HashMap<String, DB>(); //数据库Map,key是_mapName,value是DB.
   static {
     File file = new File(System.getProperty("user.dir", ".") + "/db/");
     if (!file.exists() && !file.mkdirs()) {
@@ -61,16 +59,20 @@ public class LevelDBStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
   private String _mapName;
   private Properties _properties;
 
-  private String getBASE64DecodeOfStr(String inStr, String charset) {
+  private String getMD5OfStr(String inStr, String charset) {
     try {
-      return new String(Base64.decode(inStr), charset);
-    } catch (UnsupportedEncodingException e) {
-      return new String(Base64.decode(inStr));
+      return new MD5().getMD5ofStr(inStr.getBytes(charset));
+    } catch (Exception e) {
+      return new MD5().getMD5ofStr(inStr);
     }
   }
 
   private Object byteToObject(byte[] bb) throws Exception {
-    return KryoSerializer.read(bb);
+    if (bb == null) {
+      return null;
+    } else {
+      return KryoSerializer.read(bb);
+    }
   }
 
   private byte[] objectToByte(Object object) throws Exception {
@@ -85,15 +87,14 @@ public class LevelDBStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
     _properties = properties;
     _mapName = mapName;
 
-    File dbPath = new File(System.getProperty("user.dir", ".") + "/db/" + getBASE64DecodeOfStr(_mapName, DB_CHARSET));
+    File dbPath = new File(System.getProperty("user.dir", ".") + "/db/" + getMD5OfStr(_mapName, DB_CHARSET));
+    //File dbPath = new File(System.getProperty("user.dir", ".") + "/db/" + _mapName);
     try {
       _db = JniDBFactory.factory.open(dbPath, _options);
-      _dbMap.put(_mapName, _db);
 
-      java.util.Iterator<java.util.Map.Entry<byte[], byte[]>> dbIterator = _db.iterator();
+      DBIterator dbIterator = _db.iterator();
       int dbCount = 0;
-      while (dbIterator.hasNext()) {
-        dbIterator.next();
+      for (dbIterator.seekToFirst(); dbIterator.hasNext(); dbIterator.next()) {
         dbCount++;
       }
 
@@ -117,10 +118,9 @@ public class LevelDBStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
   @Override
   public void destroy() {
     if (_db != null) {
-      java.util.Iterator<java.util.Map.Entry<byte[], byte[]>> dbIterator = _db.iterator();
+      DBIterator dbIterator = _db.iterator();
       int dbCount = 0;
-      while (dbIterator.hasNext()) {
-        dbIterator.next();
+      for (dbIterator.seekToFirst(); dbIterator.hasNext(); dbIterator.next()) {
         dbCount++;
       }
       _logger.log(Level.INFO, this.getClass().getCanonicalName() + ":" + _mapName + ":count:" + dbCount);
@@ -131,7 +131,6 @@ public class LevelDBStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
         _logger.log(Level.WARNING, ex.getMessage(), ex);
       } finally {
         _db = null;
-        _dbMap.remove(_mapName);
       }
       _logger.log(Level.INFO, this.getClass().getCanonicalName() + ":" + _mapName + ":销毁完成!");
     }
@@ -141,7 +140,11 @@ public class LevelDBStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
   public V load(K key) {
     try {
       byte[] bb = objectToByte(key);
-      return (V) byteToObject(_db.get(bb));
+      if (bb != null) {
+        return (V) byteToObject(_db.get(bb));
+      } else {
+        return null;
+      }
     } catch (Exception e) {
       _logger.log(Level.SEVERE, e.getMessage(), e);
       return null;
@@ -151,7 +154,10 @@ public class LevelDBStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
   @Override
   public void delete(K key) {
     try {
-      _db.delete(objectToByte(key));
+      byte[] bb = objectToByte(key);
+      if (bb != null) {
+        _db.delete(bb);
+      }
     } catch (Exception e) {
       _logger.log(Level.SEVERE, e.getMessage(), e);
     }
@@ -205,19 +211,17 @@ public class LevelDBStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
   }
 
   private Set<K> privateLoadAllKeys() {
-    java.util.Iterator<java.util.Map.Entry<byte[], byte[]>> dbCountIterator = _db.iterator();
+    DBIterator dbCountIterator = _db.iterator();
     int dbCount = 0;
-    while (dbCountIterator.hasNext()) {
-      dbCountIterator.next();
+    for (dbCountIterator.seekToFirst(); dbCountIterator.hasNext(); dbCountIterator.next()) {
       dbCount++;
     }
 
     Set<K> keys = new java.util.HashSet<K>(dbCount);
     try {
-      java.util.Iterator<java.util.Map.Entry<byte[], byte[]>> dbIterator = _db.iterator();
-      while (dbIterator.hasNext()) {
-        java.util.Map.Entry<byte[], byte[]> entt = dbIterator.next();
-        keys.add((K) byteToObject(entt.getKey()));
+      DBIterator dbIterator = _db.iterator();
+      for (dbIterator.seekToFirst(); dbIterator.hasNext(); dbIterator.next()) {
+        keys.add((K) byteToObject(dbIterator.peekNext().getKey()));
       }
 
     } catch (Exception e) {

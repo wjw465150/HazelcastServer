@@ -5,7 +5,7 @@
 
   <properties>
     <property name="hazelcast.logging.type">log4j</property>
-    <property name="hazelcast.jmx">false</property>
+    <property name="hazelcast.jmx">true</property>
     <property name="hazelcast.version.check.enabled">false</property>
     <property name="hazelcast.mancenter.enabled">false</property>
     <property name="hazelcast.memcache.enabled">false</property>
