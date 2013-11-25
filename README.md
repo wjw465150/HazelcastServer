@@ -1,4 +1,4 @@
-HazelcastServer是基于开源项目Hazelcast(https://code.google.com/p/hazelcast/)一个高度可扩展的基于P2P的云计算平台。特性包括：
+HazelcastServer是基于开源项目Hazelcast(https://github.com/hazelcast/hazelcast)一个高度可扩展的基于P2P的云计算平台。特性包括：
 		提供java.util.{Queue, Set, List, Map}分布式实现。
 		提供java.util.concurrency.locks.Lock分布式全局锁实现。
 		提供java.util.concurrent.ExecutorService分布式实现。
