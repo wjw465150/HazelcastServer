@@ -83,7 +83,7 @@ public class HazelcastServerApp {
         System.out.println("Started Standalone HazelcastServer!");
       }
 
-      //预加载是持久化的Map
+      //从配置文件里判断MapStore的值来预加载是持久化的Map!
       Map<String, MapConfig> mmp = _hazelcastInstance.getConfig().getMapConfigs();
       for (String key : mmp.keySet()) {
         MapConfig mconf = mmp.get(key);
