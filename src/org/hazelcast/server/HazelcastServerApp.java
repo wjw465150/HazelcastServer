@@ -84,6 +84,21 @@ public class HazelcastServerApp {
         System.out.println("Started Standalone HazelcastServer!");
       }
 
+      //从配置文件里判断MapStore的值来预加载是持久化的Queue!
+      //@wjw TODO: 会丢失数据,不知怎样解决?
+//      Map<String, QueueConfig> qMap = _hazelcastInstance.getConfig().getQConfigs();
+//      for (String queueName : qMap.keySet()) {
+//        QueueConfig qconf = qMap.get(queueName);
+//        String mapName = qconf.getBackingMapRef();
+//        if (mapName != null && mapName.length() > 0) {
+//          MapConfig mconf = _hazelcastInstance.getConfig().getMapConfig(mapName);
+//          if (mconf != null && mconf.getMapStoreConfig().isEnabled()) {
+//            System.out.println("Load Queue.Map from MapStore:" + "q:" + queueName);
+//            _hazelcastInstance.getQueue(queueName).size();
+//          }
+//        }
+//      }
+
       //从配置文件里判断MapStore的值来预加载是持久化的Map!
       Map<String, MapConfig> mMap = _hazelcastInstance.getConfig().getMapConfigs();
       for (String mapName : mMap.keySet()) {
@@ -91,20 +106,6 @@ public class HazelcastServerApp {
         if (mconf.getMapStoreConfig().isEnabled()) {
           System.out.println("Load Map from MapStore:" + mapName);
           _hazelcastInstance.getMap(mapName).size();
-        }
-      }
-
-      //从配置文件里判断MapStore的值来预加载是持久化的Queue!
-      Map<String, QueueConfig> qMap = _hazelcastInstance.getConfig().getQConfigs();
-      for (String queueName : qMap.keySet()) {
-        QueueConfig qconf = qMap.get(queueName);
-        String mapName = qconf.getBackingMapRef();
-        if (mapName != null && mapName.length() > 0) {
-          MapConfig mconf = _hazelcastInstance.getConfig().getMapConfig(mapName);
-          if (mconf != null && mconf.getMapStoreConfig().isEnabled()) {
-            System.out.println("Load Queue.Map from MapStore:" + "q:" + queueName);
-            _hazelcastInstance.getQueue(queueName).size();
-          }
         }
       }
 
@@ -118,7 +119,7 @@ public class HazelcastServerApp {
 
   public boolean doStop() {
     try {
-      Hazelcast.shutdownAll();
+      _hazelcastInstance.getLifecycleService().shutdown();
 
       if (!WrapperManager.isControlledByNativeWrapper()) {
         System.out.println("Stoped Standalone HazelcastServer!");

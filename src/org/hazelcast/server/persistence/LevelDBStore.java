@@ -89,9 +89,8 @@ public class LevelDBStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
 
     File dbPath = new File(System.getProperty("user.dir", ".") + "/db/" + getMD5OfStr(_mapName, DB_CHARSET));
     try { //@wjw_note: 由于Hazelcast的BUG,必须预先把数据加载进Hazelcast集群中
-      IMap<K, V> map = _hazelcastInstance.getMap(mapName);
-
       _db = JniDBFactory.factory.open(dbPath, _options);
+      IMap<K, V> map = _hazelcastInstance.getMap(_mapName);
       DBIterator dbIterator = _db.iterator();
       K key;
       int dbCount = 0;
