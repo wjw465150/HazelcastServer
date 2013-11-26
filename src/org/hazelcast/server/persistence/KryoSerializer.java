@@ -92,6 +92,7 @@ public final class KryoSerializer {
         }
       };
 
+      kryo.setClassLoader(Thread.currentThread().getContextClassLoader());
       kryo.setRegistrationRequired(false);
 
       kryo.register(Arrays.asList("").getClass(), new ArraysAsListSerializer());
@@ -103,12 +104,12 @@ public final class KryoSerializer {
       kryo.register(Collections.singletonMap("", "").getClass(), new CollectionsSingletonMapSerializer());
       kryo.register(BigDecimal.class, new DefaultSerializers.BigDecimalSerializer());
       kryo.register(BigInteger.class, new DefaultSerializers.BigIntegerSerializer());
-      kryo.register(GregorianCalendar.class, new GregorianCalendarSerializer());
-      kryo.register(InvocationHandler.class, new JdkProxySerializer());
       kryo.register( Pattern.class, new RegexSerializer() );
       kryo.register( BitSet.class, new BitSetSerializer() );
       kryo.register( URI.class, new URISerializer() );
       kryo.register( UUID.class, new UUIDSerializer() );
+      kryo.register(GregorianCalendar.class, new GregorianCalendarSerializer());
+      kryo.register(InvocationHandler.class, new JdkProxySerializer());
 
       UnmodifiableCollectionsSerializer.registerSerializers(kryo);
       SynchronizedCollectionsSerializer.registerSerializers(kryo);

@@ -138,9 +138,6 @@
 
     <!-- Persistence -->
     <map-store enabled="false">
-      <properties>
-        <property name="syncinterval">1</property>
-      </properties>
       <class-name>org.hazelcast.server.persistence.LevelDBStore</class-name>
       <write-delay-seconds>0</write-delay-seconds>
     </map-store>
@@ -209,9 +206,6 @@
 
     <!-- Persistence -->
     <map-store enabled="true">
-      <properties>
-        <property name="syncinterval">1</property>
-      </properties>
       <class-name>org.hazelcast.server.persistence.LevelDBStore</class-name>
       <write-delay-seconds>0</write-delay-seconds>
     </map-store>

@@ -88,27 +88,22 @@ public class LevelDBStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
     _mapName = mapName;
 
     File dbPath = new File(System.getProperty("user.dir", ".") + "/db/" + getMD5OfStr(_mapName, DB_CHARSET));
-    //File dbPath = new File(System.getProperty("user.dir", ".") + "/db/" + _mapName);
-    try {
-      _db = JniDBFactory.factory.open(dbPath, _options);
+    try { //@wjw_note: 由于Hazelcast的BUG,必须预先把数据加载进Hazelcast集群中
+      IMap<K, V> map = _hazelcastInstance.getMap(mapName);
 
+      _db = JniDBFactory.factory.open(dbPath, _options);
       DBIterator dbIterator = _db.iterator();
+      K key;
       int dbCount = 0;
+      _logger.log(Level.INFO, this.getClass().getCanonicalName() + ":" + _mapName + ":开始预先加载数据...");
       for (dbIterator.seekToFirst(); dbIterator.hasNext(); dbIterator.next()) {
+        key = (K) byteToObject(dbIterator.peekNext().getKey());
+        map.putTransient(key, load(key), 0, TimeUnit.SECONDS);
         dbCount++;
       }
 
       _logger.log(Level.INFO, this.getClass().getCanonicalName() + ":" + _mapName + ":count:" + dbCount);
-      _logger.log(Level.INFO, this.getClass().getCanonicalName() + ":" + _mapName + ":初始化完成!");
-
-      //预先把数据加载进Hazelcast集群中
-      IMap<K, V> map = _hazelcastInstance.getMap(mapName);
-      Set<K> keySet = privateLoadAllKeys();
-      for (K key : keySet) {
-        map.putTransient(key, load(key), 0, TimeUnit.SECONDS);
-      }
       _logger.log(Level.INFO, this.getClass().getCanonicalName() + ":" + _mapName + ":预先加载数据完成!");
-
     } catch (Exception ex) {
       _logger.log(Level.SEVERE, ex.getMessage(), ex);
       throw new RuntimeException("Can not start LevelDB:" + System.getProperty("user.dir", ".") + "/db/", ex);
@@ -189,47 +184,13 @@ public class LevelDBStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
   }
 
   @Override
-  public Map<K, V> loadAll(Collection<K> keys) {
-    //return privateLoadAll(keys);
-
+  public Map<K, V> loadAll(Collection<K> keys) { //@wjw_note: 由于Hazelcast的BUG,此处必须返回null
     return null;
-  }
-
-  private Map<K, V> privateLoadAll(Collection<K> keys) {
-    Map<K, V> map = new java.util.HashMap<K, V>(keys.size());
-    for (K key : keys) {
-      map.put(key, this.load(key));
-    }
-    return map;
   }
 
   @Override
-  public Set<K> loadAllKeys() {
-    //return privateLoadAllKeys();
-
+  public Set<K> loadAllKeys() { //@wjw_note: 由于Hazelcast的BUG,此处必须返回null
     return null;
   }
 
-  private Set<K> privateLoadAllKeys() {
-    DBIterator dbCountIterator = _db.iterator();
-    int dbCount = 0;
-    for (dbCountIterator.seekToFirst(); dbCountIterator.hasNext(); dbCountIterator.next()) {
-      dbCount++;
-    }
-
-    Set<K> keys = new java.util.HashSet<K>(dbCount);
-    try {
-      DBIterator dbIterator = _db.iterator();
-      for (dbIterator.seekToFirst(); dbIterator.hasNext(); dbIterator.next()) {
-        keys.add((K) byteToObject(dbIterator.peekNext().getKey()));
-      }
-
-    } catch (Exception e) {
-      _logger.log(Level.SEVERE, e.getMessage(), e);
-    }
-
-    _logger.log(Level.INFO, this.getClass().getCanonicalName() + ":" + _mapName + ":loadAllKeys:" + keys.size());
-
-    return keys;
-  }
 }

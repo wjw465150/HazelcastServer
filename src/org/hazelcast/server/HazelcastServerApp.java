@@ -10,6 +10,7 @@ import org.tanukisoftware.wrapper.WrapperManager;
 
 import com.hazelcast.config.ClasspathXmlConfig;
 import com.hazelcast.config.MapConfig;
+import com.hazelcast.config.QueueConfig;
 import com.hazelcast.core.Hazelcast;
 import com.hazelcast.core.HazelcastInstance;
 
@@ -84,15 +85,29 @@ public class HazelcastServerApp {
       }
 
       //从配置文件里判断MapStore的值来预加载是持久化的Map!
-      Map<String, MapConfig> mmp = _hazelcastInstance.getConfig().getMapConfigs();
-      for (String key : mmp.keySet()) {
-        MapConfig mconf = mmp.get(key);
+      Map<String, MapConfig> mMap = _hazelcastInstance.getConfig().getMapConfigs();
+      for (String mapName : mMap.keySet()) {
+        MapConfig mconf = mMap.get(mapName);
         if (mconf.getMapStoreConfig().isEnabled()) {
-          System.out.println("Load Map from MapStore:" + key);
-          _hazelcastInstance.getMap(key).size();
+          System.out.println("Load Map from MapStore:" + mapName);
+          _hazelcastInstance.getMap(mapName).size();
         }
       }
-      
+
+      //从配置文件里判断MapStore的值来预加载是持久化的Queue!
+      Map<String, QueueConfig> qMap = _hazelcastInstance.getConfig().getQConfigs();
+      for (String queueName : qMap.keySet()) {
+        QueueConfig qconf = qMap.get(queueName);
+        String mapName = qconf.getBackingMapRef();
+        if (mapName != null && mapName.length() > 0) {
+          MapConfig mconf = _hazelcastInstance.getConfig().getMapConfig(mapName);
+          if (mconf != null && mconf.getMapStoreConfig().isEnabled()) {
+            System.out.println("Load Queue.Map from MapStore:" + "q:" + queueName);
+            _hazelcastInstance.getQueue(queueName).size();
+          }
+        }
+      }
+
       return true;
     } catch (Exception e) {
       _hazelcastInstance = null;
