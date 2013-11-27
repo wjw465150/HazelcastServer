@@ -178,15 +178,10 @@ public class LevelDBMapStore<K, V> implements MapLoaderLifecycleSupport, MapStor
   }
 
   @Override
-  public Map<K, V> loadAll(Collection<K> keys) { //@wjw_note: 由于Hazelcast的BUG,此处必须返回null
-    return privateLoadAll(keys);
+  public Map<K, V> loadAll(Collection<K> keys) { //@wjw_note: 由于是本地存储分片的数据,此处必须返回null
+    //return privateLoadAll(keys);
     
-//    IMap<K, V> imap = _hazelcastInstance.getMap(_mapName);
-//    Map<K, V> map = privateLoadAll(keys);
-//    for (Map.Entry<K, V> et : map.entrySet()) {
-//      imap.putTransient(et.getKey(), et.getValue(), 0, TimeUnit.SECONDS);
-//    }
-//    return null;
+    return null;
   }
 
   private Map<K, V> privateLoadAll(Collection<K> keys) {
@@ -200,16 +195,10 @@ public class LevelDBMapStore<K, V> implements MapLoaderLifecycleSupport, MapStor
   }
 
   @Override
-  public Set<K> loadAllKeys() { //@wjw_note: 由于Hazelcast的BUG,此处必须返回null
-    return privateLoadAllKeys();
+  public Set<K> loadAllKeys() { //@wjw_note: 由于是本地存储分片的数据,此处必须返回null
+    //return privateLoadAllKeys();
     
-//    IMap<K, V> map = _hazelcastInstance.getMap(_mapName);
-//    Set<K> keySet = privateLoadAllKeys();
-//    for (K key : keySet) {
-//      map.putTransient(key, load(key), 0, TimeUnit.SECONDS);
-//    }
-//
-//    return null;
+    return null;
   }
 
   private Set<K> privateLoadAllKeys() {

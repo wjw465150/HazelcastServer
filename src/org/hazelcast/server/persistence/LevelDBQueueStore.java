@@ -185,8 +185,10 @@ public class LevelDBQueueStore<T> implements LifecycleListener, QueueStore<T> {
   }
 
   @Override
-  public Map<Long, T> loadAll(Collection<Long> keys) {
-    return privateLoadAll(keys);
+  public Map<Long, T> loadAll(Collection<Long> keys) {  //@wjw_note: 由于是本地存储分片的数据,此处必须返回null
+    //return privateLoadAll(keys);
+    
+    return null;
   }
 
   private Map<Long, T> privateLoadAll(Collection<Long> keys) {
@@ -200,8 +202,10 @@ public class LevelDBQueueStore<T> implements LifecycleListener, QueueStore<T> {
   }
 
   @Override
-  public Set<Long> loadAllKeys() {
-    return privateLoadAllKeys();
+  public Set<Long> loadAllKeys() {  //@wjw_note: 由于是本地存储分片的数据,此处必须返回null
+    //return privateLoadAllKeys();
+    
+    return null;
   }
 
   private Set<Long> privateLoadAllKeys() {
