@@ -6,7 +6,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 
 import org.fusesource.leveldbjni.JniDBFactory;
@@ -15,17 +14,17 @@ import org.iq80.leveldb.DB;
 import org.iq80.leveldb.DBIterator;
 import org.iq80.leveldb.Options;
 
+import com.hazelcast.core.Hazelcast;
 import com.hazelcast.core.HazelcastInstance;
-import com.hazelcast.core.IMap;
-import com.hazelcast.core.MapLoaderLifecycleSupport;
-import com.hazelcast.core.MapStore;
+import com.hazelcast.core.LifecycleEvent;
+import com.hazelcast.core.LifecycleListener;
+import com.hazelcast.core.QueueStore;
 import com.hazelcast.logging.ILogger;
 import com.hazelcast.logging.Logger;
 
 @SuppressWarnings("unchecked")
-public class LevelDBStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K, V> {
-  private final ILogger _logger = Logger.getLogger(LevelDBStore.class.getName());
-  static final String DB_CHARSET = "UTF-8"; //数据库字符集
+public class LevelDBQueueStore<T> implements LifecycleListener, QueueStore<T> {
+  private final ILogger _logger = Logger.getLogger(LevelDBQueueStore.class.getName());
 
   private DB _db; //数据库
   private static Options _options;
@@ -36,7 +35,7 @@ public class LevelDBStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
     }
 
     final org.iq80.leveldb.Logger logger = new org.iq80.leveldb.Logger() {
-      ILogger logger = Logger.getLogger(LevelDBStore.class.getName());
+      ILogger logger = Logger.getLogger(LevelDBQueueStore.class.getName());
 
       public void log(String message) {
         logger.log(Level.INFO, message);
@@ -56,7 +55,7 @@ public class LevelDBStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
   }
 
   private HazelcastInstance _hazelcastInstance;
-  private String _mapName;
+  private String _queueName;
   private Properties _properties;
 
   private String getMD5OfStr(String inStr, String charset) {
@@ -81,28 +80,25 @@ public class LevelDBStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
     return bb;
   }
 
-  @Override
-  public void init(HazelcastInstance hazelcastInstance, Properties properties, String mapName) {
-    _hazelcastInstance = hazelcastInstance;
+  public LevelDBQueueStore(Properties properties, String queueName) {
+    String hazelcastInstanceName = properties.getProperty(org.hazelcast.server.HazelcastServerApp.HAZELCAST_INSTANCE_NAME, "");
+    _hazelcastInstance = Hazelcast.getHazelcastInstanceByName(hazelcastInstanceName);
+    _hazelcastInstance.getLifecycleService().addLifecycleListener(this);
     _properties = properties;
-    _mapName = mapName;
+    _queueName = queueName;
 
-    File dbPath = new File(System.getProperty("user.dir", ".") + "/db/" + getMD5OfStr(_mapName, DB_CHARSET));
-    try { //@wjw_note: 由于Hazelcast的BUG,必须预先把数据加载进Hazelcast集群中
+    File dbPath = new File(System.getProperty("user.dir", ".") + "/db/" + getMD5OfStr(_queueName, org.hazelcast.server.HazelcastServerApp.DB_CHARSET));
+    try {
       _db = JniDBFactory.factory.open(dbPath, _options);
-      IMap<K, V> map = _hazelcastInstance.getMap(_mapName);
+
       DBIterator dbIterator = _db.iterator();
-      K key;
       int dbCount = 0;
-      _logger.log(Level.INFO, this.getClass().getCanonicalName() + ":" + _mapName + ":开始预先加载数据...");
       for (dbIterator.seekToFirst(); dbIterator.hasNext(); dbIterator.next()) {
-        key = (K) byteToObject(dbIterator.peekNext().getKey());
-        map.putTransient(key, load(key), 0, TimeUnit.SECONDS);
         dbCount++;
       }
 
-      _logger.log(Level.INFO, this.getClass().getCanonicalName() + ":" + _mapName + ":count:" + dbCount);
-      _logger.log(Level.INFO, this.getClass().getCanonicalName() + ":" + _mapName + ":预先加载数据完成!");
+      _logger.log(Level.INFO, this.getClass().getCanonicalName() + ":" + _queueName + ":count:" + dbCount);
+      _logger.log(Level.INFO, this.getClass().getCanonicalName() + ":" + _queueName + ":Construct()完成!");
     } catch (Exception ex) {
       _logger.log(Level.SEVERE, ex.getMessage(), ex);
       throw new RuntimeException("Can not start LevelDB:" + System.getProperty("user.dir", ".") + "/db/", ex);
@@ -110,6 +106,12 @@ public class LevelDBStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
   }
 
   @Override
+  public void stateChanged(LifecycleEvent event) {
+    if (event.getState() == LifecycleEvent.LifecycleState.SHUTDOWN) {
+      this.destroy();
+    }
+  }
+
   public void destroy() {
     if (_db != null) {
       DBIterator dbIterator = _db.iterator();
@@ -117,7 +119,7 @@ public class LevelDBStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
       for (dbIterator.seekToFirst(); dbIterator.hasNext(); dbIterator.next()) {
         dbCount++;
       }
-      _logger.log(Level.INFO, this.getClass().getCanonicalName() + ":" + _mapName + ":count:" + dbCount);
+      _logger.log(Level.INFO, this.getClass().getCanonicalName() + ":" + _queueName + ":count:" + dbCount);
 
       try {
         _db.close();
@@ -126,16 +128,16 @@ public class LevelDBStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
       } finally {
         _db = null;
       }
-      _logger.log(Level.INFO, this.getClass().getCanonicalName() + ":" + _mapName + ":销毁完成!");
+      _logger.log(Level.INFO, this.getClass().getCanonicalName() + ":" + _queueName + ":destroy()完成!");
     }
   }
 
   @Override
-  public V load(K key) {
+  public T load(Long key) {
     try {
       byte[] bb = objectToByte(key);
       if (bb != null) {
-        return (V) byteToObject(_db.get(bb));
+        return (T) byteToObject(_db.get(bb));
       } else {
         return null;
       }
@@ -146,7 +148,7 @@ public class LevelDBStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
   }
 
   @Override
-  public void delete(K key) {
+  public void delete(Long key) {
     try {
       byte[] bb = objectToByte(key);
       if (bb != null) {
@@ -158,14 +160,14 @@ public class LevelDBStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
   }
 
   @Override
-  public void deleteAll(Collection<K> keys) {
-    for (K key : keys) {
+  public void deleteAll(Collection<Long> keys) {
+    for (Long key : keys) {
       this.delete(key);
     }
   }
 
   @Override
-  public void store(K key, V value) {
+  public void store(Long key, T value) {
     try {
       byte[] keyEntry = objectToByte(key);
       byte[] valueEntry = objectToByte(value);
@@ -176,20 +178,53 @@ public class LevelDBStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
   }
 
   @Override
-  public void storeAll(Map<K, V> map) {
-    for (Entry<K, V> entrys : map.entrySet()) {
+  public void storeAll(Map<Long, T> map) {
+    for (Entry<Long, T> entrys : map.entrySet()) {
       this.store(entrys.getKey(), entrys.getValue());
     }
   }
 
   @Override
-  public Map<K, V> loadAll(Collection<K> keys) { //@wjw_note: 由于Hazelcast的BUG,此处必须返回null
-    return null;
+  public Map<Long, T> loadAll(Collection<Long> keys) {
+    return privateLoadAll(keys);
+  }
+
+  private Map<Long, T> privateLoadAll(Collection<Long> keys) {
+    Map<Long, T> map = new java.util.HashMap<Long, T>(keys.size());
+    for (Long key : keys) {
+      map.put(key, this.load(key));
+    }
+
+    _logger.log(Level.INFO, this.getClass().getCanonicalName() + ":" + _queueName + ":loadAll:" + map.size());
+    return map;
   }
 
   @Override
-  public Set<K> loadAllKeys() { //@wjw_note: 由于Hazelcast的BUG,此处必须返回null
-    return null;
+  public Set<Long> loadAllKeys() {
+    return privateLoadAllKeys();
+  }
+
+  private Set<Long> privateLoadAllKeys() {
+    DBIterator dbCountIterator = _db.iterator();
+    int dbCount = 0;
+    for (dbCountIterator.seekToFirst(); dbCountIterator.hasNext(); dbCountIterator.next()) {
+      dbCount++;
+    }
+
+    Set<Long> keys = new java.util.HashSet<Long>(dbCount);
+    try {
+      DBIterator dbIterator = _db.iterator();
+      for (dbIterator.seekToFirst(); dbIterator.hasNext(); dbIterator.next()) {
+        keys.add((Long) byteToObject(dbIterator.peekNext().getKey()));
+      }
+
+    } catch (Exception e) {
+      _logger.log(Level.SEVERE, e.getMessage(), e);
+    }
+
+    _logger.log(Level.INFO, this.getClass().getCanonicalName() + ":" + _queueName + ":loadAllKeys:" + keys.size());
+
+    return keys;
   }
 
 }

@@ -11,12 +11,14 @@ import org.tanukisoftware.wrapper.WrapperManager;
 import com.hazelcast.config.ClasspathXmlConfig;
 import com.hazelcast.config.MapConfig;
 import com.hazelcast.config.QueueConfig;
+import com.hazelcast.config.QueueStoreConfig;
 import com.hazelcast.core.Hazelcast;
 import com.hazelcast.core.HazelcastInstance;
 
 public class HazelcastServerApp {
-  private final String CONF_NAME = "hazelcast.xml"; //配置文件
-  private static final String DB_CHARSET = "UTF-8"; //数据库字符集
+  public final String CONF_NAME = "hazelcast.xml"; //配置文件
+  public static final String DB_CHARSET = "UTF-8"; //数据库字符集
+  public static final String HAZELCAST_INSTANCE_NAME = "HAZELCAST_INSTANCE_NAME";
 
   private HazelcastInstance _hazelcastInstance;
 
@@ -85,19 +87,16 @@ public class HazelcastServerApp {
       }
 
       //从配置文件里判断MapStore的值来预加载是持久化的Queue!
-      //@wjw TODO: 会丢失数据,不知怎样解决?
-//      Map<String, QueueConfig> qMap = _hazelcastInstance.getConfig().getQConfigs();
-//      for (String queueName : qMap.keySet()) {
-//        QueueConfig qconf = qMap.get(queueName);
-//        String mapName = qconf.getBackingMapRef();
-//        if (mapName != null && mapName.length() > 0) {
-//          MapConfig mconf = _hazelcastInstance.getConfig().getMapConfig(mapName);
-//          if (mconf != null && mconf.getMapStoreConfig().isEnabled()) {
-//            System.out.println("Load Queue.Map from MapStore:" + "q:" + queueName);
-//            _hazelcastInstance.getQueue(queueName).size();
-//          }
-//        }
-//      }
+      Map<String, QueueConfig> qMap = _hazelcastInstance.getConfig().getQueueConfigs();
+      for (String queueName : qMap.keySet()) {
+        QueueConfig qconf = qMap.get(queueName);
+        QueueStoreConfig queueStoreConfig = qconf.getQueueStoreConfig();
+        if (queueStoreConfig != null && queueStoreConfig.isEnabled() == true) {
+          queueStoreConfig.getProperties().setProperty(HAZELCAST_INSTANCE_NAME, _hazelcastInstance.getName());
+          System.out.println("Load Queue.Map from MapStore:" + "q:" + queueName);
+          _hazelcastInstance.getQueue(queueName).size();
+        }
+      }
 
       //从配置文件里判断MapStore的值来预加载是持久化的Map!
       Map<String, MapConfig> mMap = _hazelcastInstance.getConfig().getMapConfigs();
