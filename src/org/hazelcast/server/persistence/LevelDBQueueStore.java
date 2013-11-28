@@ -82,8 +82,10 @@ public class LevelDBQueueStore<T> implements LifecycleListener, QueueStore<T> {
 
   public LevelDBQueueStore(Properties properties, String queueName) {
     String hazelcastInstanceName = properties.getProperty(org.hazelcast.server.HazelcastServerApp.HAZELCAST_INSTANCE_NAME, "");
-    _hazelcastInstance = Hazelcast.getHazelcastInstanceByName(hazelcastInstanceName);
-    _hazelcastInstance.getLifecycleService().addLifecycleListener(this);
+    if(hazelcastInstanceName.length()>0) {
+      _hazelcastInstance = Hazelcast.getHazelcastInstanceByName(hazelcastInstanceName);
+      _hazelcastInstance.getLifecycleService().addLifecycleListener(this);
+    }
     _properties = properties;
     _queueName = queueName;
 

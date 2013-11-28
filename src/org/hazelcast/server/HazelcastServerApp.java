@@ -94,7 +94,7 @@ public class HazelcastServerApp {
         if (queueStoreConfig != null && queueStoreConfig.isEnabled() == true) {
           queueStoreConfig.getProperties().setProperty(HAZELCAST_INSTANCE_NAME, _hazelcastInstance.getName());
           System.out.println("Load Queue.Map from MapStore:" + "q:" + queueName);
-          _hazelcastInstance.getQueue(queueName).size();
+          _hazelcastInstance.getQueue(queueName);
         }
       }
 
@@ -104,7 +104,7 @@ public class HazelcastServerApp {
         MapConfig mconf = mMap.get(mapName);
         if (mconf.getMapStoreConfig().isEnabled()) {
           System.out.println("Load Map from MapStore:" + mapName);
-          _hazelcastInstance.getMap(mapName).size();
+          _hazelcastInstance.getMap(mapName);
         }
       }
 
