@@ -80,7 +80,8 @@ public class HazelcastServerApp {
         doStop();
       }
 
-      _hazelcastInstance = Hazelcast.newHazelcastInstance(new ClasspathXmlConfig(CONF_NAME));
+      //new features in Hazelcast 3.0 are XML variables which provided a lot of flexibility for Hazelcast xml based configuration.
+      _hazelcastInstance = Hazelcast.newHazelcastInstance(new ClasspathXmlConfig(CONF_NAME,System.getProperties()));
 
       if (!WrapperManager.isControlledByNativeWrapper()) {
         System.out.println("Started Standalone HazelcastServer!");
