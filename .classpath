@@ -5,7 +5,7 @@
 	<classpathentry kind="lib" path="bin/wrapper.jar"/>
 	<classpathentry kind="lib" path="lib/log4j-1.2.17.jar"/>
 	<classpathentry kind="lib" path="lib/kryo-all.jar"/>
-	<classpathentry kind="lib" path="lib/leveldbjni-all-1.7.jar"/>
 	<classpathentry kind="lib" path="lib/hazelcast-all-3.X.jar" sourcepath="/hazelcast-3.X/src"/>
+	<classpathentry kind="lib" path="lib/leveldbjni-all-1.8.jar"/>
 	<classpathentry kind="output" path="classes"/>
 </classpath>
