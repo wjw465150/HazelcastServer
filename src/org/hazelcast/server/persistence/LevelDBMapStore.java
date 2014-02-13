@@ -66,6 +66,12 @@ public class LevelDBMapStore<K, V> implements MapLoaderLifecycleSupport, MapStor
     }
   }
 
+  private String sanitizeFilename(String unsanitized) {
+    return unsanitized
+        .replaceAll("[\\?\\\\/:|<>\\*]", " ") // filter out ? \ / : | < > *
+        .replaceAll("\\s", "_"); // white space as underscores
+  }
+
   private Object byteToObject(byte[] bb) throws Exception {
     if (bb == null) {
       return null;
@@ -86,7 +92,7 @@ public class LevelDBMapStore<K, V> implements MapLoaderLifecycleSupport, MapStor
     _properties = properties;
     _mapName = mapName;
 
-    File dbPath = new File(System.getProperty("user.dir", ".") + "/db/" + getMD5OfStr(_mapName, org.hazelcast.server.HazelcastServerApp.DB_CHARSET));
+    File dbPath = new File(System.getProperty("user.dir", ".") + "/db/" + sanitizeFilename(_mapName));
     try {
       _db = JniDBFactory.factory.open(dbPath, _options);
 
@@ -180,7 +186,7 @@ public class LevelDBMapStore<K, V> implements MapLoaderLifecycleSupport, MapStor
   @Override
   public Map<K, V> loadAll(Collection<K> keys) { //@wjw_note: 由于是本地存储分片的数据,此处必须返回null
     //return privateLoadAll(keys);
-    
+
     return null;
   }
 
@@ -197,7 +203,7 @@ public class LevelDBMapStore<K, V> implements MapLoaderLifecycleSupport, MapStor
   @Override
   public Set<K> loadAllKeys() { //@wjw_note: 由于是本地存储分片的数据,此处必须返回null
     //return privateLoadAllKeys();
-    
+
     return null;
   }
 
