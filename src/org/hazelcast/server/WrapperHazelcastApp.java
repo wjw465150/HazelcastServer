@@ -7,7 +7,7 @@ public class WrapperHazelcastApp extends WrapperSimpleApp {
   @Override
   public Integer start(String[] args) {
     Integer result = super.start(args);
-    
+
     WrapperManager.log(WrapperManager.WRAPPER_LOG_LEVEL_FATAL, "Started Wrapper HazelcastServer!");
 
     return result;
