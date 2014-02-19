@@ -114,6 +114,13 @@ public abstract class SolrTools {
         } catch (IOException ex) {
         }
       }
+
+      if (conn != null) {
+        try {
+          conn.disconnect();
+        } catch (Exception ex) {
+        }
+      }
     }
   }
 
@@ -190,7 +197,15 @@ public abstract class SolrTools {
         } catch (IOException ex) {
         }
       }
+
+      if (conn != null) {
+        try {
+          conn.disconnect();
+        } catch (Exception ex) {
+        }
+      }
     }
+
   }
 
 }
