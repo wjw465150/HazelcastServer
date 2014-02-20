@@ -124,7 +124,7 @@
 	      <properties>
 	        <property name="server">T1</property>
 	        <property name="port">80</property>
-	        <property name="connectTimeout">60000</property>
+	        <property name="connectTimeout">0</property>
 	        <property name="readTimeout">60000</property>
 	      </properties>
         </queue-store>
@@ -209,7 +209,7 @@
 	      <properties>
 	        <property name="server">T1</property>
 	        <property name="port">80</property>
-	        <property name="connectTimeout">60000</property>
+	        <property name="connectTimeout">0</property>
 	        <property name="readTimeout">60000</property>
 	      </properties>
         </map-store>

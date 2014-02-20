@@ -48,20 +48,61 @@ public abstract class SolrTools {
 
   public static JsonObject updateDoc(String urlUpdate, int connectTimeout, int readTimeout, JsonObject doc)
       throws IOException {
+    for (int i = 0; i < 3; i++) {
+      try {
+        JsonObject solrResponse = new JsonObject(doPostProcess(urlUpdate, connectTimeout, readTimeout, "[" + doc.encode() + "]", null, null));
+        return solrResponse;
+      } catch (Exception e) {
+        try {
+          Thread.sleep(100);
+        } catch (InterruptedException e1) {
+        }
+      }
+    }
+
     JsonObject solrResponse = new JsonObject(doPostProcess(urlUpdate, connectTimeout, readTimeout, "[" + doc.encode() + "]", null, null));
     return solrResponse;
   }
 
   public static JsonObject delDoc(String urlUpdate, int connectTimeout, int readTimeout, JsonObject doc)
       throws IOException {
+    for (int i = 0; i < 3; i++) {
+      try {
+        JsonObject solrResponse = new JsonObject(doPostProcess(urlUpdate, connectTimeout, readTimeout, doc.encode(), null, null));
+        return solrResponse;
+      } catch (Exception e) {
+        try {
+          Thread.sleep(100);
+        } catch (InterruptedException e1) {
+        }
+      }
+    }
+
     JsonObject solrResponse = new JsonObject(doPostProcess(urlUpdate, connectTimeout, readTimeout, doc.encode(), null, null));
     return solrResponse;
   }
 
   //错误返回null
-  public static JsonObject getDoc(String urlGet, int connectTimeout, int readTimeout, String id) throws IOException {
-    JsonObject solrResponse = new JsonObject(doGetProcess(urlGet + URLEncoder.encode(id, UTF_8), connectTimeout, readTimeout, null, null));
-    return solrResponse.getObject("doc");
+  public static JsonObject getDoc(String urlGet, int connectTimeout, int readTimeout, String id) {
+    for (int i = 0; i < 3; i++) {
+      try {
+        JsonObject solrResponse = new JsonObject(doGetProcess(urlGet + URLEncoder.encode(id, UTF_8), connectTimeout, readTimeout, null, null));
+        return solrResponse.getObject("doc");
+      } catch (Exception e) {
+        try {
+          Thread.sleep(100);
+        } catch (InterruptedException e1) {
+        }
+      }
+    }
+
+    try {
+      JsonObject solrResponse = new JsonObject(doGetProcess(urlGet + URLEncoder.encode(id, UTF_8), connectTimeout, readTimeout, null, null));
+      return solrResponse.getObject("doc");
+    } catch (Exception e) {
+      e.printStackTrace();
+      return null;
+    }
   }
 
   /**
@@ -95,11 +136,11 @@ public abstract class SolrTools {
             + new String(Base64.encodeBytes((user + ":" + pass).getBytes(UTF_8)))); //需要BASIC验证
       }
 
-      for (int i = 0; i < 3; i++) { //尝试多次连接
+      for (int i = 0; i < 10; i++) { //尝试多次连接
         try {
           conn.connect();
           break;
-        } catch (java.net.ConnectException e) {
+        } catch (Exception e) {
           try {
             Thread.sleep(100);
           } catch (InterruptedException e1) {
@@ -132,12 +173,12 @@ public abstract class SolrTools {
         }
       }
 
-      if (conn != null) {
-        try {
-          conn.disconnect();
-        } catch (Exception ex) {
-        }
-      }
+//      if (conn != null) {
+//        try {
+//          conn.disconnect();
+//        } catch (Exception ex) {
+//        }
+//      }
     }
   }
 
@@ -177,11 +218,11 @@ public abstract class SolrTools {
             + new String(Base64.encodeBytes((user + ":" + pass).getBytes(UTF_8)))); //需要BASIC验证
       }
 
-      for (int i = 0; i < 3; i++) { //尝试多次连接
+      for (int i = 0; i < 10; i++) { //尝试多次连接
         try {
           conn.connect();
           break;
-        } catch (java.net.ConnectException e) {
+        } catch (Exception e) {
           try {
             Thread.sleep(100);
           } catch (InterruptedException e1) {
@@ -225,12 +266,12 @@ public abstract class SolrTools {
         }
       }
 
-      if (conn != null) {
-        try {
-          conn.disconnect();
-        } catch (Exception ex) {
-        }
-      }
+//      if (conn != null) {
+//        try {
+//          conn.disconnect();
+//        } catch (Exception ex) {
+//        }
+//      }
     }
 
   }
