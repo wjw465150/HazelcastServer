@@ -11,6 +11,13 @@ import java.net.URLEncoder;
 import org.wjw.efjson.JsonObject;
 
 public abstract class SolrTools {
+  static final String UTF_8 = "UTF-8"; //HTTP请求字符集
+
+  static final String F_ID = "id";
+  static final String F_VERSION = "_version_";
+  //@wjw_note: schema.xml需要添加:   <field name="HZ_DATA" type="text_general" indexed="false" stored="true"/>
+  static final String F_HZ_DATA = "HZ_DATA";
+
   private SolrTools() {
     //
   }
@@ -53,7 +60,7 @@ public abstract class SolrTools {
 
   //错误返回null
   public static JsonObject getDoc(String urlGet, int connectTimeout, int readTimeout, String id) throws IOException {
-    JsonObject solrResponse = new JsonObject(doGetProcess(urlGet + URLEncoder.encode(id, SolrStore.UTF_8), connectTimeout, readTimeout, null, null));
+    JsonObject solrResponse = new JsonObject(doGetProcess(urlGet + URLEncoder.encode(id, UTF_8), connectTimeout, readTimeout, null, null));
     return solrResponse.getObject("doc");
   }
 
@@ -85,15 +92,15 @@ public abstract class SolrTools {
       conn.setRequestProperty("Accept", "*/*");
       if (user != null && pass != null) {
         conn.setRequestProperty("Authorization", "Basic "
-            + new String(Base64.encodeBytes((user + ":" + pass).getBytes(SolrStore.UTF_8)))); //需要BASIC验证
+            + new String(Base64.encodeBytes((user + ":" + pass).getBytes(UTF_8)))); //需要BASIC验证
       }
 
       conn.connect();
 
       if (conn.getResponseCode() == HttpURLConnection.HTTP_OK) {
-        reader = new BufferedReader(new InputStreamReader(conn.getInputStream(), SolrStore.UTF_8));
+        reader = new BufferedReader(new InputStreamReader(conn.getInputStream(), UTF_8));
       } else {
-        reader = new BufferedReader(new InputStreamReader(conn.getErrorStream(), SolrStore.UTF_8));
+        reader = new BufferedReader(new InputStreamReader(conn.getErrorStream(), UTF_8));
       }
       String line;
       StringBuilder result = new StringBuilder();
@@ -154,22 +161,22 @@ public abstract class SolrTools {
       conn.setDoOutput(true);
       conn.setDoInput(true);
       conn.setRequestProperty("Accept", "*/*");
-      conn.setRequestProperty("Content-Type", "application/json;charset=" + SolrStore.UTF_8);
+      conn.setRequestProperty("Content-Type", "application/json;charset=" + UTF_8);
       if (user != null && pass != null) {
         conn.setRequestProperty("Authorization", "Basic "
-            + new String(Base64.encodeBytes((user + ":" + pass).getBytes(SolrStore.UTF_8)))); //需要BASIC验证
+            + new String(Base64.encodeBytes((user + ":" + pass).getBytes(UTF_8)))); //需要BASIC验证
       }
 
       conn.connect();
 
-      writer = new OutputStreamWriter(conn.getOutputStream(), SolrStore.UTF_8);
+      writer = new OutputStreamWriter(conn.getOutputStream(), UTF_8);
       writer.write(data);
       writer.flush();
 
       if (conn.getResponseCode() == HttpURLConnection.HTTP_OK) {
-        reader = new BufferedReader(new InputStreamReader(conn.getInputStream(), SolrStore.UTF_8));
+        reader = new BufferedReader(new InputStreamReader(conn.getInputStream(), UTF_8));
       } else {
-        reader = new BufferedReader(new InputStreamReader(conn.getErrorStream(), SolrStore.UTF_8));
+        reader = new BufferedReader(new InputStreamReader(conn.getErrorStream(), UTF_8));
       }
       String line;
       StringBuilder result = new StringBuilder();

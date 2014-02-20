@@ -26,7 +26,10 @@
       <property name="hazelcast.memcache.enabled">false</property>
       <property name="hazelcast.rest.enabled">false</property>
       <property name="hazelcast.executor.client.thread.count">100</property>
-      <property name="hazelcast.wait.seconds.before.join">0</property> 
+      <property name="hazelcast.wait.seconds.before.join">5</property> 
+
+      <property name="hazelcast.elastic.memory.enabled">false</property> 
+      <property name="hazelcast.elastic.memory.total.size">4G</property> 
     </properties>
     
     <group>
@@ -199,7 +202,7 @@
 
         <!-- Persistence -->
         <map-store enabled="false">
-          <class-name>org.hazelcast.server.persistence.SolrStore</class-name>
+          <class-name>org.hazelcast.server.persistence.MapSolrStore</class-name>
           <write-delay-seconds>3</write-delay-seconds>
 	      <properties>
 	        <property name="server">T1</property>

@@ -60,7 +60,7 @@ public class QueueSolrStore<T> implements QueueStore<T> {
           return null;
         }
 
-        String sValue = doc.getString(SolrStore.F_HZ_DATA);
+        String sValue = doc.getString(SolrTools.F_HZ_DATA);
         byte[] bValue = Base64.decode(sValue);
         return (T) SolrTools.byteToObject(bValue);
       } else {
@@ -80,7 +80,7 @@ public class QueueSolrStore<T> implements QueueStore<T> {
         String sKey = _queueName + ":" + Base64.encodeBytes(bKey);
 
         JsonObject doc = new JsonObject();
-        doc.putObject("delete", (new JsonObject()).putString(SolrStore.F_ID, sKey));
+        doc.putObject("delete", (new JsonObject()).putString(SolrTools.F_ID, sKey));
         SolrTools.delDoc(urlUpdate, connectTimeout, readTimeout, doc);
       }
     } catch (Exception e) {
@@ -104,9 +104,9 @@ public class QueueSolrStore<T> implements QueueStore<T> {
       String sValue = Base64.encodeBytes(bValue);
 
       JsonObject doc = new JsonObject();
-      doc.putString(SolrStore.F_ID, sKey);
-      doc.putNumber(SolrStore.F_VERSION, 0); // =0 Don¡¯t care (normal overwrite if exists)
-      doc.putString(SolrStore.F_HZ_DATA, sValue);
+      doc.putString(SolrTools.F_ID, sKey);
+      doc.putNumber(SolrTools.F_VERSION, 0); // =0 Don¡¯t care (normal overwrite if exists)
+      doc.putString(SolrTools.F_HZ_DATA, sValue);
 
       JsonObject jsonResponse = SolrTools.updateDoc(urlUpdate, connectTimeout, readTimeout, doc);
       if (SolrTools.getStatus(jsonResponse) != 0) {
