@@ -41,6 +41,13 @@ public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
         throw new RuntimeException("propertie Solr 'port' Can not null");
       }
 
+      if (_properties.getProperty("connectTimeout") != null) {
+        connectTimeout = Integer.parseInt(_properties.getProperty("connectTimeout"));
+      }
+      if (_properties.getProperty("readTimeout") != null) {
+        readTimeout = Integer.parseInt(_properties.getProperty("readTimeout"));
+      }
+      
       urlGet = "http://" + _properties.getProperty("server") + ":" + _properties.getProperty("port") + "/solr/get?id=";
       urlUpdate = "http://" + _properties.getProperty("server") + ":" + _properties.getProperty("port") + "/solr/update";
       SolrTools.getDoc(urlGet, connectTimeout, readTimeout, "0");

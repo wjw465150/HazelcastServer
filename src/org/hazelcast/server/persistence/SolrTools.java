@@ -95,7 +95,17 @@ public abstract class SolrTools {
             + new String(Base64.encodeBytes((user + ":" + pass).getBytes(UTF_8)))); //需要BASIC验证
       }
 
-      conn.connect();
+      for (int i = 0; i < 3; i++) { //尝试多次连接
+        try {
+          conn.connect();
+          break;
+        } catch (java.net.ConnectException e) {
+          try {
+            Thread.sleep(100);
+          } catch (InterruptedException e1) {
+          }
+        }
+      }
 
       if (conn.getResponseCode() == HttpURLConnection.HTTP_OK) {
         reader = new BufferedReader(new InputStreamReader(conn.getInputStream(), UTF_8));
@@ -167,7 +177,17 @@ public abstract class SolrTools {
             + new String(Base64.encodeBytes((user + ":" + pass).getBytes(UTF_8)))); //需要BASIC验证
       }
 
-      conn.connect();
+      for (int i = 0; i < 3; i++) { //尝试多次连接
+        try {
+          conn.connect();
+          break;
+        } catch (java.net.ConnectException e) {
+          try {
+            Thread.sleep(100);
+          } catch (InterruptedException e1) {
+          }
+        }
+      }
 
       writer = new OutputStreamWriter(conn.getOutputStream(), UTF_8);
       writer.write(data);
