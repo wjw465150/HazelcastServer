@@ -12,11 +12,16 @@ import org.wjw.efjson.JsonObject;
 
 public abstract class SolrTools {
   static final String UTF_8 = "UTF-8"; //HTTP请求字符集
+  static final String LOGDateFormatPattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'";
 
   static final String F_ID = "id";
   static final String F_VERSION = "_version_";
+
   //@wjw_note: schema.xml需要添加:   <field name="HZ_DATA" type="text_general" indexed="false" stored="true"/>
   static final String F_HZ_DATA = "HZ_DATA";
+  
+  //@wjw_note: schema.xml需要添加:   <field name="HZ_BIRTHDAY" type="date" indexed="true" stored="true"/>
+  static final String F_HZ_BIRTHDAY = "HZ_BIRTHDAY";
 
   private SolrTools() {
     //
@@ -48,61 +53,19 @@ public abstract class SolrTools {
 
   public static JsonObject updateDoc(String urlUpdate, int connectTimeout, int readTimeout, JsonObject doc)
       throws IOException {
-    for (int i = 0; i < 3; i++) {
-      try {
-        JsonObject solrResponse = new JsonObject(doPostProcess(urlUpdate, connectTimeout, readTimeout, "[" + doc.encode() + "]", null, null));
-        return solrResponse;
-      } catch (Exception e) {
-        try {
-          Thread.sleep(100);
-        } catch (InterruptedException e1) {
-        }
-      }
-    }
-
     JsonObject solrResponse = new JsonObject(doPostProcess(urlUpdate, connectTimeout, readTimeout, "[" + doc.encode() + "]", null, null));
     return solrResponse;
   }
 
   public static JsonObject delDoc(String urlUpdate, int connectTimeout, int readTimeout, JsonObject doc)
       throws IOException {
-    for (int i = 0; i < 3; i++) {
-      try {
-        JsonObject solrResponse = new JsonObject(doPostProcess(urlUpdate, connectTimeout, readTimeout, doc.encode(), null, null));
-        return solrResponse;
-      } catch (Exception e) {
-        try {
-          Thread.sleep(100);
-        } catch (InterruptedException e1) {
-        }
-      }
-    }
-
     JsonObject solrResponse = new JsonObject(doPostProcess(urlUpdate, connectTimeout, readTimeout, doc.encode(), null, null));
     return solrResponse;
   }
 
-  //错误返回null
-  public static JsonObject getDoc(String urlGet, int connectTimeout, int readTimeout, String id) {
-    for (int i = 0; i < 3; i++) {
-      try {
-        JsonObject solrResponse = new JsonObject(doGetProcess(urlGet + URLEncoder.encode(id, UTF_8), connectTimeout, readTimeout, null, null));
-        return solrResponse.getObject("doc");
-      } catch (Exception e) {
-        try {
-          Thread.sleep(100);
-        } catch (InterruptedException e1) {
-        }
-      }
-    }
-
-    try {
-      JsonObject solrResponse = new JsonObject(doGetProcess(urlGet + URLEncoder.encode(id, UTF_8), connectTimeout, readTimeout, null, null));
-      return solrResponse.getObject("doc");
-    } catch (Exception e) {
-      e.printStackTrace();
-      return null;
-    }
+  public static JsonObject getDoc(String urlGet, int connectTimeout, int readTimeout, String id) throws IOException {
+    JsonObject solrResponse = new JsonObject(doGetProcess(urlGet + URLEncoder.encode(id, UTF_8), connectTimeout, readTimeout, null, null));
+    return solrResponse.getObject("doc");
   }
 
   /**
@@ -173,12 +136,12 @@ public abstract class SolrTools {
         }
       }
 
-//      if (conn != null) {
-//        try {
-//          conn.disconnect();
-//        } catch (Exception ex) {
-//        }
-//      }
+      //      if (conn != null) {
+      //        try {
+      //          conn.disconnect();
+      //        } catch (Exception ex) {
+      //        }
+      //      }
     }
   }
 
@@ -266,12 +229,12 @@ public abstract class SolrTools {
         }
       }
 
-//      if (conn != null) {
-//        try {
-//          conn.disconnect();
-//        } catch (Exception ex) {
-//        }
-//      }
+      //      if (conn != null) {
+      //        try {
+      //          conn.disconnect();
+      //        } catch (Exception ex) {
+      //        }
+      //      }
     }
 
   }

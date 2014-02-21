@@ -27,6 +27,7 @@ public class HazelcastServerApp<K, V> implements EntryListener<K, V>, Distribute
   public static final String DB_CHARSET = "UTF-8"; //Êý¾Ý¿â×Ö·û¼¯
   public static final String HAZELCAST_INSTANCE_NAME = "HAZELCAST_INSTANCE_NAME";
 
+  private String _idDistributedObjectListener;
   private HazelcastInstance _hazelcastInstance;
   private Map<String, String> _mapEntryListener = new HashMap<String, String>();
 
@@ -90,7 +91,7 @@ public class HazelcastServerApp<K, V> implements EntryListener<K, V>, Distribute
 
       //new features in Hazelcast 3.0 are XML variables which provided a lot of flexibility for Hazelcast xml based configuration.
       _hazelcastInstance = Hazelcast.newHazelcastInstance(new ClasspathXmlConfig(CONF_NAME, System.getProperties()));
-      _hazelcastInstance.addDistributedObjectListener(this);
+      _idDistributedObjectListener = _hazelcastInstance.addDistributedObjectListener(this);
 
       if (!WrapperManager.isControlledByNativeWrapper()) {
         System.out.println("Started Standalone HazelcastServer!");
@@ -128,6 +129,7 @@ public class HazelcastServerApp<K, V> implements EntryListener<K, V>, Distribute
 
   public boolean doStop() {
     try {
+      _hazelcastInstance.removeDistributedObjectListener(_idDistributedObjectListener);
       _hazelcastInstance.getLifecycleService().shutdown();
 
       if (!WrapperManager.isControlledByNativeWrapper()) {

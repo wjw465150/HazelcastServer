@@ -22,10 +22,8 @@
       <property name="hazelcast.logging.type">log4j</property>
       <property name="hazelcast.jmx">true</property>
       <property name="hazelcast.version.check.enabled">false</property>
-      <property name="hazelcast.mancenter.enabled">false</property>
       <property name="hazelcast.memcache.enabled">true</property>
       <property name="hazelcast.rest.enabled">false</property>
-      <property name="hazelcast.executor.client.thread.count">100</property>
       <property name="hazelcast.wait.seconds.before.join">5</property> 
 
       <property name="hazelcast.elastic.memory.enabled">false</property> 
@@ -122,8 +120,7 @@
         <queue-store  enabled="false">
           <factory-class-name>org.hazelcast.server.persistence.QueueSolrStoreFactory</factory-class-name>
 	      <properties>
-	        <property name="server">T1</property>
-	        <property name="port">80</property>
+	        <property name="servers">http://T1:8983/solr/,http://T2:18983/solr/</property>
 	        <property name="connectTimeout">0</property>
 	        <property name="readTimeout">60000</property>
 	      </properties>
@@ -205,10 +202,9 @@
         <!-- Persistence -->
         <map-store enabled="false">
           <class-name>org.hazelcast.server.persistence.MapSolrStore</class-name>
-          <write-delay-seconds>3</write-delay-seconds>
+          <write-delay-seconds>10</write-delay-seconds>
 	      <properties>
-	        <property name="server">T1</property>
-	        <property name="port">80</property>
+	        <property name="servers">http://T1:8983/solr/,http://T2:18983/solr/</property>
 	        <property name="connectTimeout">0</property>
 	        <property name="readTimeout">60000</property>
 	      </properties>

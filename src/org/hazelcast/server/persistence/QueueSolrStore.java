@@ -1,10 +1,13 @@
 package org.hazelcast.server.persistence;
 
+import java.io.IOException;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 
 import org.wjw.efjson.JsonObject;
@@ -20,22 +23,42 @@ public class QueueSolrStore<T> implements QueueStore<T> {
   private int connectTimeout = 60 * 1000; //连接超时
   private int readTimeout = 60 * 1000; //读超时
 
-  private String urlGet;
-  private String urlUpdate;
+  private String[] urlGets;
+  private String[] urlUpdates;
 
   private String _queueName;
   private Properties _properties;
+
+  private Lock lockGet = new ReentrantLock();
+  private int indexGet = -1;
+  private Lock lockPost = new ReentrantLock();
+  private int indexPost = -1;
 
   public QueueSolrStore(Properties properties, String queueName) {
     _properties = properties;
     _queueName = queueName;
 
     try {
-      if (_properties.getProperty("server") == null) {
-        throw new RuntimeException("propertie Solr 'server' Can not null");
+      if (_properties.getProperty("servers") == null) {
+        throw new RuntimeException("propertie Solr 'servers' Can not null");
       }
-      if (_properties.getProperty("port") == null) {
-        throw new RuntimeException("propertie Solr 'port' Can not null");
+      String[] urlArray = _properties.getProperty("servers").split(",");
+      this.urlGets = new String[urlArray.length];
+      for (int i = 0; i < urlArray.length; i++) {
+        if (urlArray[i].endsWith("/")) {
+          urlGets[i] = urlArray[i] + "get?id=";
+        } else {
+          urlGets[i] = urlArray[i] + "/get?id=";
+        }
+      }
+
+      this.urlUpdates = new String[urlArray.length];
+      for (int i = 0; i < urlArray.length; i++) {
+        if (urlArray[i].endsWith("/")) {
+          urlUpdates[i] = urlArray[i] + "update";
+        } else {
+          urlUpdates[i] = urlArray[i] + "/update";
+        }
       }
 
       if (_properties.getProperty("connectTimeout") != null) {
@@ -44,15 +67,49 @@ public class QueueSolrStore<T> implements QueueStore<T> {
       if (_properties.getProperty("readTimeout") != null) {
         readTimeout = Integer.parseInt(_properties.getProperty("readTimeout"));
       }
-      
-      urlGet = "http://" + _properties.getProperty("server") + ":" + _properties.getProperty("port") + "/solr/get?id=";
-      urlUpdate = "http://" + _properties.getProperty("server") + ":" + _properties.getProperty("port") + "/solr/update";
-      SolrTools.getDoc(urlGet, connectTimeout, readTimeout, "0");
+
+      SolrTools.getDoc(urlGets[0], connectTimeout, readTimeout, "0");
 
       _logger.log(Level.INFO, this.getClass().getCanonicalName() + ":" + _queueName + ":init()完成!");
     } catch (Exception ex) {
       _logger.log(Level.SEVERE, ex.getMessage(), ex);
       throw new RuntimeException(ex);
+    }
+  }
+
+  public String getSolrGetUrl() {
+    if (urlGets.length == 1) {
+      return urlGets[0];
+    }
+    
+    lockGet.lock();
+    try {
+      indexGet++;
+      if (indexGet >= urlGets.length) {
+        indexGet = 0;
+      }
+
+      return urlGets[indexGet];
+    } finally {
+      lockGet.unlock();
+    }
+  }
+
+  public String getSolrUpdateUrl() {
+    if (urlUpdates.length == 1) {
+      return urlUpdates[0];
+    }
+
+    lockPost.lock();
+    try {
+      indexPost++;
+      if (indexPost >= urlUpdates.length) {
+        indexPost = 0;
+      }
+
+      return urlUpdates[indexPost];
+    } finally {
+      lockPost.unlock();
     }
   }
 
@@ -62,7 +119,22 @@ public class QueueSolrStore<T> implements QueueStore<T> {
       byte[] bKey = SolrTools.objectToByte(key);
       if (bKey != null) {
         String sKey = _queueName + ":" + Base64.encodeBytes(bKey);
-        JsonObject doc = SolrTools.getDoc(urlGet, connectTimeout, readTimeout, sKey);
+
+        JsonObject doc = null;
+        for (int i = 0; i < 3; i++) {
+          try {
+            doc = SolrTools.getDoc(getSolrGetUrl(), connectTimeout, readTimeout, sKey);
+            break;
+          } catch (IOException ioe) {
+            doc = null;
+            break;
+          } catch (Exception e) {
+            try {
+              Thread.sleep(100);
+            } catch (InterruptedException e1) {
+            }
+          }
+        }
         if (doc == null) {
           return null;
         }
@@ -88,7 +160,21 @@ public class QueueSolrStore<T> implements QueueStore<T> {
 
         JsonObject doc = new JsonObject();
         doc.putObject("delete", (new JsonObject()).putString(SolrTools.F_ID, sKey));
-        SolrTools.delDoc(urlUpdate, connectTimeout, readTimeout, doc);
+
+        JsonObject jsonResponse = null;
+        for (int i = 0; i < 3; i++) {
+          try {
+            jsonResponse = SolrTools.delDoc(getSolrUpdateUrl(), connectTimeout, readTimeout, doc);
+            if (SolrTools.getStatus(jsonResponse) == 0) {
+              break;
+            }
+          } catch (Exception e) {
+            try {
+              Thread.sleep(100);
+            } catch (InterruptedException e1) {
+            }
+          }
+        }
       }
     } catch (Exception e) {
       _logger.log(Level.SEVERE, e.getMessage(), e);
@@ -115,7 +201,21 @@ public class QueueSolrStore<T> implements QueueStore<T> {
       doc.putNumber(SolrTools.F_VERSION, 0); // =0 Don’t care (normal overwrite if exists)
       doc.putString(SolrTools.F_HZ_DATA, sValue);
 
-      JsonObject jsonResponse = SolrTools.updateDoc(urlUpdate, connectTimeout, readTimeout, doc);
+      JsonObject jsonResponse = null;
+      for (int i = 0; i < 3; i++) {
+        try {
+          jsonResponse = SolrTools.updateDoc(getSolrUpdateUrl(), connectTimeout, readTimeout, doc);
+          if (SolrTools.getStatus(jsonResponse) == 0) {
+            break;
+          }
+        } catch (Exception e) {
+          try {
+            Thread.sleep(100);
+          } catch (InterruptedException e1) {
+          }
+        }
+      }
+
       if (SolrTools.getStatus(jsonResponse) != 0) {
         throw new RuntimeException(jsonResponse.encodePrettily());
       }
