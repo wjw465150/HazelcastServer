@@ -2,6 +2,7 @@ package org.hazelcast.server;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Map;
 
 import org.apache.log4j.PropertyConfigurator;
@@ -12,15 +13,22 @@ import com.hazelcast.config.ClasspathXmlConfig;
 import com.hazelcast.config.MapConfig;
 import com.hazelcast.config.QueueConfig;
 import com.hazelcast.config.QueueStoreConfig;
+import com.hazelcast.core.DistributedObjectEvent;
+import com.hazelcast.core.DistributedObjectListener;
+import com.hazelcast.core.EntryEvent;
+import com.hazelcast.core.EntryListener;
 import com.hazelcast.core.Hazelcast;
 import com.hazelcast.core.HazelcastInstance;
+import com.hazelcast.core.IMap;
 
-public class HazelcastServerApp {
+@SuppressWarnings({ "rawtypes", "unchecked" })
+public class HazelcastServerApp<K, V> implements EntryListener<K, V>, DistributedObjectListener {
   public final String CONF_NAME = "hazelcast.xml"; //配置文件
   public static final String DB_CHARSET = "UTF-8"; //数据库字符集
   public static final String HAZELCAST_INSTANCE_NAME = "HAZELCAST_INSTANCE_NAME";
 
   private HazelcastInstance _hazelcastInstance;
+  private Map<String, String> _mapEntryListener = new HashMap<String, String>();
 
   //初始化目录和Log4j
   static {
@@ -82,6 +90,7 @@ public class HazelcastServerApp {
 
       //new features in Hazelcast 3.0 are XML variables which provided a lot of flexibility for Hazelcast xml based configuration.
       _hazelcastInstance = Hazelcast.newHazelcastInstance(new ClasspathXmlConfig(CONF_NAME, System.getProperties()));
+      _hazelcastInstance.addDistributedObjectListener(this);
 
       if (!WrapperManager.isControlledByNativeWrapper()) {
         System.out.println("Started Standalone HazelcastServer!");
@@ -132,4 +141,48 @@ public class HazelcastServerApp {
       _hazelcastInstance = null;
     }
   }
+
+  @Override
+  public void entryAdded(EntryEvent<K, V> event) {
+    //System.out.println(event.toString());
+  }
+
+  @Override
+  public void entryRemoved(EntryEvent<K, V> event) {
+    //System.out.println(event.toString());
+  }
+
+  @Override
+  public void entryUpdated(EntryEvent<K, V> event) {
+    //System.out.println(event.toString());
+  }
+
+  @Override
+  public void entryEvicted(EntryEvent<K, V> event) {
+    if (event.getValue() instanceof com.hazelcast.ascii.memcache.MemcacheEntry) {
+      _hazelcastInstance.getMap(event.getName()).delete(event.getKey());
+    }
+  }
+
+  @Override
+  public void distributedObjectCreated(DistributedObjectEvent event) {
+    if (event.getDistributedObject() instanceof IMap) {
+      IMap imap = (IMap) event.getDistributedObject();
+      String idListener = imap.addEntryListener(this, true);
+      _mapEntryListener.put(imap.getName(), idListener);
+    }
+  }
+
+  @Override
+  public void distributedObjectDestroyed(DistributedObjectEvent event) {
+    if (event.getDistributedObject() instanceof IMap) {
+      IMap imap = (IMap) event.getDistributedObject();
+
+      String idListener = _mapEntryListener.remove(imap.getName());
+      if (idListener != null) {
+        imap.removeEntryListener(idListener);
+      }
+    }
+  }
+
 }
