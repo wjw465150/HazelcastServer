@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Collection;
+import java.util.Date;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
@@ -23,6 +24,8 @@ import com.hazelcast.logging.Logger;
 @SuppressWarnings("unchecked")
 public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K, V> {
   private final ILogger _logger = Logger.getLogger(MapSolrStore.class.getName());
+
+  static final long DAY_30 = 30 * 24 * 60 * 60 * 1000L;
 
   private int connectTimeout = 60 * 1000; //连接超时
   private int readTimeout = 60 * 1000; //读超时
@@ -147,6 +150,16 @@ public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
         }
         if (doc == null) {
           return null;
+        }
+
+        if (_mapName.startsWith("hz_memcache_")) {
+          DateFormat dateFormat = new SimpleDateFormat(SolrTools.LOGDateFormatPattern);
+
+          Date birthday = dateFormat.parse(doc.getString(SolrTools.F_HZ_BIRTHDAY));
+          if ((System.currentTimeMillis() - birthday.getTime()) >= DAY_30) { //超期30天
+            this.delete(key);
+            return null;
+          }
         }
 
         String sValue = doc.getString(SolrTools.F_HZ_DATA);
