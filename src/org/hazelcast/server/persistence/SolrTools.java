@@ -19,9 +19,9 @@ public abstract class SolrTools {
 
   //@wjw_note: schema.xml需要添加:   <field name="HZ_DATA" type="text_general" indexed="false" stored="true"/>
   static final String F_HZ_DATA = "HZ_DATA";
-  
-  //@wjw_note: schema.xml需要添加:   <field name="HZ_BIRTHDAY" type="date" indexed="true" stored="true"/>
-  static final String F_HZ_BIRTHDAY = "HZ_BIRTHDAY";
+
+  //@wjw_note: schema.xml需要添加:   <field name="HZ_CTIME" type="date" indexed="true" stored="true"/>
+  static final String F_HZ_CTIME = "HZ_CTIME";
 
   private SolrTools() {
     //
@@ -99,17 +99,7 @@ public abstract class SolrTools {
             + new String(Base64.encodeBytes((user + ":" + pass).getBytes(UTF_8)))); //需要BASIC验证
       }
 
-      for (int i = 0; i < 10; i++) { //尝试多次连接
-        try {
-          conn.connect();
-          break;
-        } catch (Exception e) {
-          try {
-            Thread.sleep(100);
-          } catch (InterruptedException e1) {
-          }
-        }
-      }
+      conn.connect();
 
       if (conn.getResponseCode() == HttpURLConnection.HTTP_OK) {
         reader = new BufferedReader(new InputStreamReader(conn.getInputStream(), UTF_8));
@@ -181,17 +171,7 @@ public abstract class SolrTools {
             + new String(Base64.encodeBytes((user + ":" + pass).getBytes(UTF_8)))); //需要BASIC验证
       }
 
-      for (int i = 0; i < 10; i++) { //尝试多次连接
-        try {
-          conn.connect();
-          break;
-        } catch (Exception e) {
-          try {
-            Thread.sleep(100);
-          } catch (InterruptedException e1) {
-          }
-        }
-      }
+      conn.connect();
 
       writer = new OutputStreamWriter(conn.getOutputStream(), UTF_8);
       writer.write(data);

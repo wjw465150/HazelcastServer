@@ -1,6 +1,5 @@
 package org.hazelcast.server.persistence;
 
-import java.io.IOException;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -19,6 +18,8 @@ import com.hazelcast.logging.Logger;
 @SuppressWarnings("unchecked")
 public class QueueSolrStore<T> implements QueueStore<T> {
   private final ILogger _logger = Logger.getLogger(QueueSolrStore.class.getName());
+
+  static final int RETRY_COUNT = 4;
 
   private int connectTimeout = 60 * 1000; //连接超时
   private int readTimeout = 60 * 1000; //读超时
@@ -81,7 +82,7 @@ public class QueueSolrStore<T> implements QueueStore<T> {
     if (urlGets.length == 1) {
       return urlGets[0];
     }
-    
+
     lockGet.lock();
     try {
       indexGet++;
@@ -121,13 +122,12 @@ public class QueueSolrStore<T> implements QueueStore<T> {
         String sKey = _queueName + ":" + Base64.encodeBytes(bKey);
 
         JsonObject doc = null;
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < RETRY_COUNT; i++) {
           try {
             doc = SolrTools.getDoc(getSolrGetUrl(), connectTimeout, readTimeout, sKey);
-            break;
-          } catch (IOException ioe) {
-            doc = null;
-            break;
+            if (doc != null) {
+              break;
+            }
           } catch (Exception e) {
             try {
               Thread.sleep(100);
@@ -155,26 +155,27 @@ public class QueueSolrStore<T> implements QueueStore<T> {
   public void delete(Long key) {
     try {
       byte[] bKey = SolrTools.objectToByte(key);
-      if (bKey != null) {
-        String sKey = _queueName + ":" + Base64.encodeBytes(bKey);
+      String sKey = _queueName + ":" + Base64.encodeBytes(bKey);
+      JsonObject doc = new JsonObject();
+      doc.putObject("delete", (new JsonObject()).putString(SolrTools.F_ID, sKey));
 
-        JsonObject doc = new JsonObject();
-        doc.putObject("delete", (new JsonObject()).putString(SolrTools.F_ID, sKey));
-
-        JsonObject jsonResponse = null;
-        for (int i = 0; i < 3; i++) {
+      JsonObject jsonResponse = null;
+      for (int i = 0; i < RETRY_COUNT; i++) {
+        try {
+          jsonResponse = SolrTools.delDoc(getSolrUpdateUrl(), connectTimeout, readTimeout, doc);
+          if (SolrTools.getStatus(jsonResponse) == 0) {
+            break;
+          }
+        } catch (Exception e) {
           try {
-            jsonResponse = SolrTools.delDoc(getSolrUpdateUrl(), connectTimeout, readTimeout, doc);
-            if (SolrTools.getStatus(jsonResponse) == 0) {
-              break;
-            }
-          } catch (Exception e) {
-            try {
-              Thread.sleep(100);
-            } catch (InterruptedException e1) {
-            }
+            Thread.sleep(100);
+          } catch (InterruptedException e1) {
           }
         }
+      }
+
+      if (SolrTools.getStatus(jsonResponse) != 0) {
+        throw new RuntimeException(jsonResponse.encodePrettily());
       }
     } catch (Exception e) {
       _logger.log(Level.SEVERE, e.getMessage(), e);
@@ -202,7 +203,7 @@ public class QueueSolrStore<T> implements QueueStore<T> {
       doc.putString(SolrTools.F_HZ_DATA, sValue);
 
       JsonObject jsonResponse = null;
-      for (int i = 0; i < 3; i++) {
+      for (int i = 0; i < RETRY_COUNT; i++) {
         try {
           jsonResponse = SolrTools.updateDoc(getSolrUpdateUrl(), connectTimeout, readTimeout, doc);
           if (SolrTools.getStatus(jsonResponse) == 0) {

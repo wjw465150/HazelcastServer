@@ -33,7 +33,6 @@ public class HazelcastServerApp<K, V> implements EntryListener<K, V>, Distribute
   private String _idDistributedObjectListener;
   private HazelcastInstance _hazelcastInstance;
   private Map<String, String> _mapEntryListener = new HashMap<String, String>();
-  private Map<String, MapConfig> _mapMapConfig;
 
   //初始化目录和Log4j
   static {
@@ -114,10 +113,10 @@ public class HazelcastServerApp<K, V> implements EntryListener<K, V>, Distribute
       }
 
       //从配置文件里判断MapStore的值来预加载是持久化的Map!
-      _mapMapConfig = _hazelcastInstance.getConfig().getMapConfigs();
-      for (String mapName : _mapMapConfig.keySet()) {
-        MapConfig mconf = _mapMapConfig.get(mapName);
-        if (mconf.getMapStoreConfig().isEnabled()) {
+      Map<String, MapConfig> mapMapConfig = _hazelcastInstance.getConfig().getMapConfigs();
+      for (String mapName : mapMapConfig.keySet()) {
+        MapConfig mconf = mapMapConfig.get(mapName);
+        if (mconf.getMapStoreConfig() != null && mconf.getMapStoreConfig().isEnabled()) {
           System.out.println("Load Map from MapStore:" + mapName);
           _hazelcastInstance.getMap(mapName);
         }
