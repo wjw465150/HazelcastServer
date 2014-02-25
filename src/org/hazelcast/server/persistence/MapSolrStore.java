@@ -8,10 +8,14 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 
+import org.wjw.efjson.JsonArray;
 import org.wjw.efjson.JsonObject;
 
 import com.hazelcast.core.HazelcastInstance;
@@ -21,62 +25,61 @@ import com.hazelcast.logging.ILogger;
 import com.hazelcast.logging.Logger;
 
 @SuppressWarnings("unchecked")
-public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K, V> {
+public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K, V>, Runnable {
   private final ILogger _logger = Logger.getLogger(MapSolrStore.class.getName());
 
   static final String MEMCACHED_PREFIX = "hz_memcache_";
   static final long DAY_30 = 30 * 24 * 60 * 60 * 1000L;
-  static final int RETRY_COUNT = 4;
 
-  private int connectTimeout = 60 * 1000; //连接超时
-  private int readTimeout = 60 * 1000; //读超时
+  private String _solrServerUrls;
+  private int _connectTimeout = 60 * 1000; //连接超时
+  private int _readTimeout = 60 * 1000; //读超时
 
-  private String[] urlGets;
-  private String[] urlUpdates;
+  private java.util.List<String> _urlGets;
+  private java.util.List<String> _urlUpdates;
 
   private String _mapName;
   private Properties _properties;
 
-  private Lock lockGet = new ReentrantLock();
-  private int indexGet = -1;
-  private Lock lockPost = new ReentrantLock();
-  private int indexPost = -1;
+  private Lock _lockGet = new ReentrantLock();
+  private int _indexGet = -1;
+  private Lock _lockPost = new ReentrantLock();
+  private int _indexPost = -1;
+
+  private ScheduledExecutorService _scheduleSync = Executors.newSingleThreadScheduledExecutor(); //刷新Solr集群状态的Scheduled
 
   public MapSolrStore(String mapName, Properties properties) {
     _mapName = mapName;
     _properties = properties;
 
     try {
-      if (_properties.getProperty("servers") == null) {
-        throw new RuntimeException("propertie Solr 'servers' Can not null");
+      if (_properties.getProperty(SolrTools.SOLR_SERVER_URLS) == null) {
+        throw new RuntimeException("propertie Solr '" + SolrTools.SOLR_SERVER_URLS + "' Can not null");
       }
-      String[] urlArray = _properties.getProperty("servers").split(",");
-      this.urlGets = new String[urlArray.length];
-      for (int i = 0; i < urlArray.length; i++) {
-        if (urlArray[i].endsWith("/")) {
-          urlGets[i] = urlArray[i] + "get?id=";
-        } else {
-          urlGets[i] = urlArray[i] + "/get?id=";
+      _solrServerUrls = _properties.getProperty(SolrTools.SOLR_SERVER_URLS);
+      if (_properties.getProperty(SolrTools.CONNECT_TIMEOUT) != null) {
+        _connectTimeout = Integer.parseInt(_properties.getProperty(SolrTools.CONNECT_TIMEOUT));
+      }
+      if (_properties.getProperty(SolrTools.READ_TIMEOUT) != null) {
+        _readTimeout = Integer.parseInt(_properties.getProperty(SolrTools.READ_TIMEOUT));
+      }
+
+      JsonArray stateArray = SolrTools.getClusterState(_solrServerUrls, _connectTimeout, _readTimeout);
+      if (stateArray == null) {
+        throw new RuntimeException("can not connect Solr Cloud:" + _solrServerUrls);
+      } else {
+        _logger.log(Level.INFO, "Solr Cloud Status:" + stateArray.encodePrettily());
+      }
+
+      this._urlGets = new java.util.ArrayList<String>(stateArray.size());
+      this._urlUpdates = new java.util.ArrayList<String>(stateArray.size());
+      for (int i = 0; i < stateArray.size(); i++) {
+        JsonObject jNode = stateArray.<JsonObject> get(i);
+        if (jNode.getString("state").equalsIgnoreCase("active") || jNode.getString("state").equalsIgnoreCase("recovering")) {
+          this._urlGets.add(jNode.getString("base_url") + "/get?id=");
+          this._urlUpdates.add(jNode.getString("base_url") + "/update");
         }
       }
-
-      this.urlUpdates = new String[urlArray.length];
-      for (int i = 0; i < urlArray.length; i++) {
-        if (urlArray[i].endsWith("/")) {
-          urlUpdates[i] = urlArray[i] + "update";
-        } else {
-          urlUpdates[i] = urlArray[i] + "/update";
-        }
-      }
-
-      if (_properties.getProperty("connectTimeout") != null) {
-        connectTimeout = Integer.parseInt(_properties.getProperty("connectTimeout"));
-      }
-      if (_properties.getProperty("readTimeout") != null) {
-        readTimeout = Integer.parseInt(_properties.getProperty("readTimeout"));
-      }
-
-      SolrTools.getDoc(urlGets[0], connectTimeout, readTimeout, "0");
     } catch (Exception ex) {
       _logger.log(Level.SEVERE, ex.getMessage(), ex);
       throw new RuntimeException(ex);
@@ -85,47 +88,86 @@ public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
 
   @Override
   public void init(HazelcastInstance hazelcastInstance, Properties properties, String mapName) {
+    int syncinterval = 10;
+    _scheduleSync.scheduleWithFixedDelay(this, 10, syncinterval, TimeUnit.SECONDS);
     _logger.log(Level.INFO, this.getClass().getCanonicalName() + ":" + _mapName + ":init()完成!");
   }
 
   @Override
   public void destroy() {
+    _scheduleSync.shutdown();
     _logger.log(Level.INFO, this.getClass().getCanonicalName() + ":" + _mapName + ":destroy()完成!");
   }
 
   public String getSolrGetUrl() {
-    if (urlGets.length == 1) {
-      return urlGets[0];
+    if (_urlGets.size() == 1) {
+      return _urlGets.get(0);
     }
 
-    lockGet.lock();
+    _lockGet.lock();
     try {
-      indexGet++;
-      if (indexGet >= urlGets.length) {
-        indexGet = 0;
+      _indexGet++;
+      if (_indexGet >= _urlGets.size()) {
+        _indexGet = 0;
       }
 
-      return urlGets[indexGet];
+      return _urlGets.get(_indexGet);
     } finally {
-      lockGet.unlock();
+      _lockGet.unlock();
     }
   }
 
   public String getSolrUpdateUrl() {
-    if (urlUpdates.length == 1) {
-      return urlUpdates[0];
+    if (_urlUpdates.size() == 1) {
+      return _urlUpdates.get(0);
     }
 
-    lockPost.lock();
+    _lockPost.lock();
     try {
-      indexPost++;
-      if (indexPost >= urlUpdates.length) {
-        indexPost = 0;
+      _indexPost++;
+      if (_indexPost >= _urlUpdates.size()) {
+        _indexPost = 0;
       }
 
-      return urlUpdates[indexPost];
+      return _urlUpdates.get(_indexPost);
     } finally {
-      lockPost.unlock();
+      _lockPost.unlock();
+    }
+  }
+
+  @Override
+  //刷新Solr集群状态的Scheduled
+  public void run() {
+    JsonArray stateArray = SolrTools.getClusterState(_solrServerUrls, _connectTimeout, _readTimeout);
+    if (stateArray == null) {
+      _logger.log(Level.WARNING, "can not connect Solr Cloud:" + _solrServerUrls);
+      return;
+    }
+
+    java.util.List<String> newUrlGets = new java.util.ArrayList<String>(stateArray.size());
+    java.util.List<String> newUrlUpdates = new java.util.ArrayList<String>(stateArray.size());
+    for (int i = 0; i < stateArray.size(); i++) {
+      JsonObject jj = stateArray.<JsonObject> get(i);
+      if (jj.getString("state").equalsIgnoreCase("active") || jj.getString("state").equalsIgnoreCase("recovering")) {
+        newUrlGets.add(jj.getString("base_url") + "/get?id=");
+        newUrlUpdates.add(jj.getString("base_url") + "/update");
+      }
+    }
+
+    _lockGet.lock();
+    try {
+      this._urlGets.clear();
+      this._urlGets = newUrlGets;
+    } finally {
+      _lockGet.unlock();
+    }
+
+    _lockPost.lock();
+    try {
+      this._urlUpdates.clear();
+      this._urlUpdates = newUrlUpdates;
+    } finally {
+      _lockPost.unlock();
     }
   }
 
@@ -137,12 +179,10 @@ public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
         String sKey = _mapName + ":" + Base64.encodeBytes(bKey);
 
         JsonObject doc = null;
-        for (int i = 0; i < RETRY_COUNT; i++) {
+        for (int i = 0; i < _urlGets.size(); i++) {
           try {
-            doc = SolrTools.getDoc(getSolrGetUrl(), connectTimeout, readTimeout, sKey);
-            if (doc != null) {
-              break;
-            }
+            doc = SolrTools.getDoc(getSolrGetUrl(), _connectTimeout, _readTimeout, sKey);
+            break;
           } catch (Exception e) {
             try {
               Thread.sleep(100);
@@ -185,9 +225,9 @@ public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
       doc.putObject("delete", (new JsonObject()).putString(SolrTools.F_ID, sKey));
 
       JsonObject jsonResponse = null;
-      for (int i = 0; i < RETRY_COUNT; i++) {
+      for (int i = 0; i < _urlUpdates.size(); i++) {
         try {
-          jsonResponse = SolrTools.delDoc(getSolrUpdateUrl(), connectTimeout, readTimeout, doc);
+          jsonResponse = SolrTools.delDoc(getSolrUpdateUrl(), _connectTimeout, _readTimeout, doc);
           if (SolrTools.getStatus(jsonResponse) == 0) {
             break;
           }
@@ -232,9 +272,9 @@ public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
       doc.putString(SolrTools.F_HZ_DATA, sValue);
 
       JsonObject jsonResponse = null;
-      for (int i = 0; i < RETRY_COUNT; i++) {
+      for (int i = 0; i < _urlUpdates.size(); i++) {
         try {
-          jsonResponse = SolrTools.updateDoc(getSolrUpdateUrl(), connectTimeout, readTimeout, doc);
+          jsonResponse = SolrTools.updateDoc(getSolrUpdateUrl(), _connectTimeout, _readTimeout, doc);
           if (SolrTools.getStatus(jsonResponse) == 0) {
             break;
           }

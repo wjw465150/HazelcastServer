@@ -7,13 +7,19 @@ import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
+import java.util.Map;
 
+import org.wjw.efjson.JsonArray;
 import org.wjw.efjson.JsonObject;
 
 public abstract class SolrTools {
   static final String UTF_8 = "UTF-8"; //HTTP请求字符集
   static final String LOGDateFormatPattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'";
 
+  static final String SOLR_SERVER_URLS = "solrServerUrls";
+  static final String CONNECT_TIMEOUT = "connectTimeout";
+  static final String READ_TIMEOUT = "readTimeout";
+  
   static final String F_ID = "id";
   static final String F_VERSION = "_version_";
 
@@ -39,6 +45,64 @@ public abstract class SolrTools {
     byte[] bb = KryoSerializer.write(object);
 
     return bb;
+  }
+
+  @SuppressWarnings("unchecked")
+  //返回的格式是:[
+  //  {"state":"active","base_url":"http://192.168.0.143:8983/solr","core":"collection1","node_name":"192.168.0.143:8983_solr","leader":"true"}
+  //  ,{"state":"active","base_url":"http://192.168.0.147:8983/solr","core":"collection1","node_name":"192.168.0.147:8983_solr"}
+  //  ,{"state":"active","base_url":"http://192.168.0.118:8983/solr","core":"collection1","node_name":"192.168.0.118:8983_solr"}
+  //  ,{"state":"active","base_url":"http://192.168.0.145:8983/solr","core":"collection1","node_name":"192.168.0.145:8983_solr","leader":"true"}
+  //  ,{"state":"active","base_url":"http://192.168.0.150:8983/solr","core":"collection1","node_name":"192.168.0.150:8983_solr"}
+  //  ,{"state":"active","base_url":"http://192.168.0.190:8983/solr","core":"collection1","node_name":"192.168.0.190:8983_solr"}
+  //  ,{"state":"active","base_url":"http://192.168.0.146:8983/solr","core":"collection1","node_name":"192.168.0.146:8983_solr","leader":"true"}
+  //  ,{"state":"active","base_url":"http://192.168.0.200:8983/solr","core":"collection1","node_name":"192.168.0.200:8983_solr"}
+  //  ,{"state":"active","base_url":"http://192.168.0.58:8983/solr","core":"collection1","node_name":"192.168.0.58:8983_solr"}
+  //  ,{"state":"active","base_url":"http://192.168.0.144:8983/solr","core":"collection1","node_name":"192.168.0.144:8983_solr","leader":"true"}
+  //  ,{"state":"active","base_url":"http://192.168.0.108:8983/solr","core":"collection1","node_name":"192.168.0.108:8983_solr"}
+  //  ,{"state":"active","base_url":"http://192.168.0.191:8983/solr","core":"collection1","node_name":"192.168.0.191:8983_solr"}
+  //  ]
+  //错误返回null
+  public static JsonArray getClusterState(String solrServers, int connectTimeout, int readTimeout) {
+    String[] urlArray = solrServers.split(",");
+
+    String clusterstate;
+    JsonArray result = null;
+    for (int i = 0; i < urlArray.length; i++) {
+      if (urlArray[i].endsWith("/")) {
+        clusterstate = urlArray[i] + "zookeeper?wt=json&detail=true&path=%2Fclusterstate.json&_=" + System.currentTimeMillis();
+      } else {
+        clusterstate = urlArray[i] + "/zookeeper?wt=json&detail=true&path=%2Fclusterstate.json&_=" + System.currentTimeMillis();
+      }
+
+      try {
+        String bodyText = doGetProcess(clusterstate, connectTimeout, readTimeout, null, null);
+
+        JsonObject jsonBody = new JsonObject(bodyText);
+        String data = jsonBody.getObject("znode").getString("data");
+        JsonObject jsonData = new JsonObject(data);
+
+        JsonObject shards = jsonData.getObject("collection1").getObject("shards");
+        int size = shards.size();
+        result = new JsonArray();
+        for (int j = 0; j < size; j++) {
+          JsonObject jsonShared = shards.getObject("shard" + (j + 1));
+          JsonObject replicas = jsonShared.getObject("replicas");
+
+          Map<String, Object> nodes = replicas.toMap();
+          for (Object node : nodes.values()) {
+            JsonObject jsonNode = new JsonObject((Map<String, Object>) node);
+            result.addObject(jsonNode);
+          }
+        }
+
+        break;
+      } catch (Exception e) {
+        result = null;
+      }
+    }
+
+    return result;
   }
 
   /**
@@ -218,5 +282,4 @@ public abstract class SolrTools {
     }
 
   }
-
 }

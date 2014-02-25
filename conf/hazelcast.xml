@@ -119,11 +119,11 @@
         <empty-queue-ttl>-1</empty-queue-ttl>
         <queue-store  enabled="false">
           <factory-class-name>org.hazelcast.server.persistence.QueueSolrStoreFactory</factory-class-name>
-        <properties>
-          <property name="servers">http://T1:8983/solr/,http://T2:18983/solr/</property>
-          <property name="connectTimeout">60000</property>
-          <property name="readTimeout">60000</property>
-        </properties>
+          <properties>
+            <property name="solrServerUrls">http://T1:8983/solr/,http://T2:18983/solr/</property>
+            <property name="connectTimeout">60000</property>
+            <property name="readTimeout">60000</property>
+          </properties>
         </queue-store>
     </queue>
     <map name="default">
@@ -202,9 +202,9 @@
         <!-- Persistence -->
         <map-store enabled="false">
           <factory-class-name>org.hazelcast.server.persistence.MapSolrStoreFactory</factory-class-name>
-          <write-delay-seconds>3</write-delay-seconds>
+          <write-delay-seconds>10</write-delay-seconds>
           <properties>
-            <property name="servers">http://T1:8983/solr/,http://T2:18983/solr/</property>
+            <property name="solrServerUrls">http://T1:8983/solr/,http://T2:18983/solr/</property>
             <property name="connectTimeout">60000</property>
             <property name="readTimeout">60000</property>
           </properties>
@@ -237,7 +237,7 @@
     <services enable-defaults="true" />
 
     <!--  用户自定义Map -->
-    <map name="customers">
+    <map name="cust*">
         <in-memory-format>BINARY</in-memory-format>
         
         <backup-count>1</backup-count>
@@ -255,13 +255,39 @@
         <!-- Persistence -->
         <map-store enabled="true">
           <factory-class-name>org.hazelcast.server.persistence.MapSolrStoreFactory</factory-class-name>
-          <write-delay-seconds>10</write-delay-seconds>
+          <write-delay-seconds>3</write-delay-seconds>
           <properties>
-            <property name="servers">http://T1:8983/solr/,http://T2:18983/solr/</property>
+            <property name="solrServerUrls">http://T1:8983/solr/,http://T2:18983/solr/</property>
             <property name="connectTimeout">60000</property>
             <property name="readTimeout">60000</property>
           </properties>
         </map-store>
     </map>
 
+    <map name="users">
+        <in-memory-format>BINARY</in-memory-format>
+        
+        <backup-count>1</backup-count>
+        <async-backup-count>0</async-backup-count>
+        
+        <time-to-live-seconds>0</time-to-live-seconds>
+        <max-idle-seconds>0</max-idle-seconds>
+        <eviction-policy>NONE</eviction-policy>
+        <max-size policy="PER_NODE">0</max-size>
+        <eviction-percentage>25</eviction-percentage>
+        <merge-policy>com.hazelcast.map.merge.PassThroughMergePolicy</merge-policy>
+
+        <read-backup-data>true</read-backup-data>
+        
+        <!-- Persistence -->
+        <map-store enabled="true">
+          <factory-class-name>org.hazelcast.server.persistence.MapSolrStoreFactory</factory-class-name>
+          <write-delay-seconds>1</write-delay-seconds>
+          <properties>
+            <property name="solrServerUrls">http://T1:8983/solr/,http://T2:18983/solr/</property>
+            <property name="connectTimeout">60000</property>
+            <property name="readTimeout">60000</property>
+          </properties>
+        </map-store>
+    </map>
 </hazelcast>
