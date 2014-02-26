@@ -46,14 +46,14 @@ public class QueueSolrStore<T> implements QueueStore<T>, Runnable {
 
     try {
       if (_properties.getProperty(SolrTools.SOLR_SERVER_URLS) == null) {
-        throw new RuntimeException("propertie Solr '"+SolrTools.SOLR_SERVER_URLS+"' Can not null");
+        throw new RuntimeException("propertie Solr '" + SolrTools.SOLR_SERVER_URLS + "' Can not null");
       }
       _solrServerUrls = _properties.getProperty(SolrTools.SOLR_SERVER_URLS);
       if (_properties.getProperty(SolrTools.CONNECT_TIMEOUT) != null) {
-        _connectTimeout = Integer.parseInt(_properties.getProperty(SolrTools.CONNECT_TIMEOUT));
+        _connectTimeout = Integer.parseInt(_properties.getProperty(SolrTools.CONNECT_TIMEOUT)) * 1000;
       }
       if (_properties.getProperty(SolrTools.READ_TIMEOUT) != null) {
-        _readTimeout = Integer.parseInt(_properties.getProperty(SolrTools.READ_TIMEOUT));
+        _readTimeout = Integer.parseInt(_properties.getProperty(SolrTools.READ_TIMEOUT)) * 1000;
       }
 
       JsonArray stateArray = SolrTools.getClusterState(_solrServerUrls, _connectTimeout, _readTimeout);
@@ -158,32 +158,27 @@ public class QueueSolrStore<T> implements QueueStore<T>, Runnable {
   @Override
   public T load(Long key) {
     try {
-      byte[] bKey = SolrTools.objectToByte(key);
-      if (bKey != null) {
-        String sKey = _queueName + ":" + Base64.encodeBytes(bKey);
+      String sKey = _queueName + ":" + key;
 
-        JsonObject doc = null;
-        for (int i = 0; i < _urlGets.size(); i++) {
+      JsonObject doc = null;
+      for (int i = 0; i < _urlGets.size(); i++) {
+        try {
+          doc = SolrTools.getDoc(getSolrGetUrl(), _connectTimeout, _readTimeout, sKey);
+          break;
+        } catch (Exception e) {
           try {
-            doc = SolrTools.getDoc(getSolrGetUrl(), _connectTimeout, _readTimeout, sKey);
-            break;
-          } catch (Exception e) {
-            try {
-              Thread.sleep(100);
-            } catch (InterruptedException e1) {
-            }
+            Thread.sleep(100);
+          } catch (InterruptedException e1) {
           }
         }
-        if (doc == null) {
-          return null;
-        }
-
-        String sValue = doc.getString(SolrTools.F_HZ_DATA);
-        byte[] bValue = Base64.decode(sValue);
-        return (T) SolrTools.byteToObject(bValue);
-      } else {
+      }
+      if (doc == null) {
         return null;
       }
+
+      String sValue = doc.getString(SolrTools.F_HZ_DATA);
+      byte[] bValue = Base64.decode(sValue);
+      return (T) SolrTools.byteToObject(bValue);
     } catch (Exception e) {
       _logger.log(Level.SEVERE, e.getMessage(), e);
       return null;
@@ -193,8 +188,7 @@ public class QueueSolrStore<T> implements QueueStore<T>, Runnable {
   @Override
   public void delete(Long key) {
     try {
-      byte[] bKey = SolrTools.objectToByte(key);
-      String sKey = _queueName + ":" + Base64.encodeBytes(bKey);
+      String sKey = _queueName + ":" + key;
       JsonObject doc = new JsonObject();
       doc.putObject("delete", (new JsonObject()).putString(SolrTools.F_ID, sKey));
 
@@ -231,9 +225,8 @@ public class QueueSolrStore<T> implements QueueStore<T>, Runnable {
   @Override
   public void store(Long key, T value) {
     try {
-      byte[] bKey = SolrTools.objectToByte(key);
+      String sKey = _queueName + ":" + key;
       byte[] bValue = SolrTools.objectToByte(value);
-      String sKey = _queueName + ":" + Base64.encodeBytes(bKey);
       String sValue = Base64.encodeBytes(bValue);
 
       JsonObject doc = new JsonObject();

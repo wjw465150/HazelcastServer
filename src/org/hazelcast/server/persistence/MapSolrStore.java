@@ -58,10 +58,10 @@ public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
       }
       _solrServerUrls = _properties.getProperty(SolrTools.SOLR_SERVER_URLS);
       if (_properties.getProperty(SolrTools.CONNECT_TIMEOUT) != null) {
-        _connectTimeout = Integer.parseInt(_properties.getProperty(SolrTools.CONNECT_TIMEOUT));
+        _connectTimeout = Integer.parseInt(_properties.getProperty(SolrTools.CONNECT_TIMEOUT)) * 1000;
       }
       if (_properties.getProperty(SolrTools.READ_TIMEOUT) != null) {
-        _readTimeout = Integer.parseInt(_properties.getProperty(SolrTools.READ_TIMEOUT));
+        _readTimeout = Integer.parseInt(_properties.getProperty(SolrTools.READ_TIMEOUT)) * 1000;
       }
 
       JsonArray stateArray = SolrTools.getClusterState(_solrServerUrls, _connectTimeout, _readTimeout);
@@ -174,42 +174,37 @@ public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
   @Override
   public V load(K key) {
     try {
-      byte[] bKey = SolrTools.objectToByte(key);
-      if (bKey != null) {
-        String sKey = _mapName + ":" + Base64.encodeBytes(bKey);
+      String sKey = _mapName + ":" + key.toString();
 
-        JsonObject doc = null;
-        for (int i = 0; i < _urlGets.size(); i++) {
+      JsonObject doc = null;
+      for (int i = 0; i < _urlGets.size(); i++) {
+        try {
+          doc = SolrTools.getDoc(getSolrGetUrl(), _connectTimeout, _readTimeout, sKey);
+          break;
+        } catch (Exception e) {
           try {
-            doc = SolrTools.getDoc(getSolrGetUrl(), _connectTimeout, _readTimeout, sKey);
-            break;
-          } catch (Exception e) {
-            try {
-              Thread.sleep(100);
-            } catch (InterruptedException e1) {
-            }
+            Thread.sleep(100);
+          } catch (InterruptedException e1) {
           }
         }
-        if (doc == null) {
-          return null;
-        }
-
-        if (_mapName.startsWith(MEMCACHED_PREFIX)) { //判断memcache是否超期
-          DateFormat dateFormat = new SimpleDateFormat(SolrTools.LOGDateFormatPattern);
-
-          Date birthday = dateFormat.parse(doc.getString(SolrTools.F_HZ_CTIME));
-          if ((System.currentTimeMillis() - birthday.getTime()) >= DAY_30) { //超期30天
-            this.delete(key);
-            return null;
-          }
-        }
-
-        String sValue = doc.getString(SolrTools.F_HZ_DATA);
-        byte[] bValue = Base64.decode(sValue);
-        return (V) SolrTools.byteToObject(bValue);
-      } else {
+      }
+      if (doc == null) {
         return null;
       }
+
+      if (_mapName.startsWith(MEMCACHED_PREFIX)) { //判断memcache是否超期
+        DateFormat dateFormat = new SimpleDateFormat(SolrTools.LOGDateFormatPattern);
+
+        Date birthday = dateFormat.parse(doc.getString(SolrTools.F_HZ_CTIME));
+        if ((System.currentTimeMillis() - birthday.getTime()) >= DAY_30) { //超期30天
+          this.delete(key);
+          return null;
+        }
+      }
+
+      String sValue = doc.getString(SolrTools.F_HZ_DATA);
+      byte[] bValue = Base64.decode(sValue);
+      return (V) SolrTools.byteToObject(bValue);
     } catch (Exception e) {
       _logger.log(Level.SEVERE, e.getMessage(), e);
       return null;
@@ -219,8 +214,7 @@ public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
   @Override
   public void delete(K key) {
     try {
-      byte[] bKey = SolrTools.objectToByte(key);
-      String sKey = _mapName + ":" + Base64.encodeBytes(bKey);
+      String sKey = _mapName + ":" + key.toString();
       JsonObject doc = new JsonObject();
       doc.putObject("delete", (new JsonObject()).putString(SolrTools.F_ID, sKey));
 
@@ -257,9 +251,8 @@ public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
   @Override
   public void store(K key, V value) {
     try {
-      byte[] bKey = SolrTools.objectToByte(key);
+      String sKey = _mapName + ":" + key.toString();
       byte[] bValue = SolrTools.objectToByte(value);
-      String sKey = _mapName + ":" + Base64.encodeBytes(bKey);
       String sValue = Base64.encodeBytes(bValue);
 
       JsonObject doc = new JsonObject();

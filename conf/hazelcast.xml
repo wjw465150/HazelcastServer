@@ -121,8 +121,8 @@
           <factory-class-name>org.hazelcast.server.persistence.QueueSolrStoreFactory</factory-class-name>
           <properties>
             <property name="solrServerUrls">http://T1:8983/solr/,http://T2:18983/solr/</property>
-            <property name="connectTimeout">60000</property>
-            <property name="readTimeout">60000</property>
+            <property name="connectTimeout">60</property>
+            <property name="readTimeout">60</property>
           </properties>
         </queue-store>
     </queue>
@@ -205,8 +205,8 @@
           <write-delay-seconds>10</write-delay-seconds>
           <properties>
             <property name="solrServerUrls">http://T1:8983/solr/,http://T2:18983/solr/</property>
-            <property name="connectTimeout">60000</property>
-            <property name="readTimeout">60000</property>
+            <property name="connectTimeout">60</property>
+            <property name="readTimeout">60</property>
           </properties>
         </map-store>
     </map>
@@ -258,8 +258,8 @@
           <write-delay-seconds>3</write-delay-seconds>
           <properties>
             <property name="solrServerUrls">http://T1:8983/solr/,http://T2:18983/solr/</property>
-            <property name="connectTimeout">60000</property>
-            <property name="readTimeout">60000</property>
+            <property name="connectTimeout">60</property>
+            <property name="readTimeout">60</property>
           </properties>
         </map-store>
     </map>
@@ -285,8 +285,8 @@
           <write-delay-seconds>1</write-delay-seconds>
           <properties>
             <property name="solrServerUrls">http://T1:8983/solr/,http://T2:18983/solr/</property>
-            <property name="connectTimeout">60000</property>
-            <property name="readTimeout">60000</property>
+            <property name="connectTimeout">60</property>
+            <property name="readTimeout">60</property>
           </properties>
         </map-store>
     </map>

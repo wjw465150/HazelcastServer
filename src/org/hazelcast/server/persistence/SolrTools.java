@@ -19,15 +19,15 @@ public abstract class SolrTools {
   static final String SOLR_SERVER_URLS = "solrServerUrls";
   static final String CONNECT_TIMEOUT = "connectTimeout";
   static final String READ_TIMEOUT = "readTimeout";
-  
+
   static final String F_ID = "id";
   static final String F_VERSION = "_version_";
 
-  //@wjw_note: schema.xml需要添加:   <field name="HZ_DATA" type="text_general" indexed="false" stored="true"/>
-  static final String F_HZ_DATA = "HZ_DATA";
-
   //@wjw_note: schema.xml需要添加:   <field name="HZ_CTIME" type="date" indexed="true" stored="true"/>
   static final String F_HZ_CTIME = "HZ_CTIME";
+
+  //@wjw_note: schema.xml需要添加:   <field name="HZ_DATA" type="text_general" indexed="false" stored="true"/>
+  static final String F_HZ_DATA = "HZ_DATA";
 
   private SolrTools() {
     //
