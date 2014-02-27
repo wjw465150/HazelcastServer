@@ -23,7 +23,7 @@
       <property name="hazelcast.jmx">true</property>
       <property name="hazelcast.version.check.enabled">false</property>
       <property name="hazelcast.memcache.enabled">true</property>
-      <property name="hazelcast.rest.enabled">false</property>
+      <property name="hazelcast.rest.enabled">true</property>
       <property name="hazelcast.wait.seconds.before.join">5</property> 
 
       <property name="hazelcast.elastic.memory.enabled">false</property> 
@@ -116,7 +116,8 @@
         -->
         <async-backup-count>0</async-backup-count>
 
-        <empty-queue-ttl>-1</empty-queue-ttl>
+        <empty-queue-ttl>600</empty-queue-ttl>
+        <!--
         <queue-store  enabled="false">
           <factory-class-name>org.hazelcast.server.persistence.QueueSolrStoreFactory</factory-class-name>
           <properties>
@@ -125,6 +126,7 @@
             <property name="readTimeout">60</property>
           </properties>
         </queue-store>
+        -->
     </queue>
     <map name="default">
         <!--
@@ -198,17 +200,19 @@
             com.hazelcast.map.merge.LatestUpdateMapMergePolicy ; entry with the latest update wins.
         -->
         <merge-policy>com.hazelcast.map.merge.PassThroughMergePolicy</merge-policy>
-
+        
         <!-- Persistence -->
+        <!--
         <map-store enabled="false">
           <factory-class-name>org.hazelcast.server.persistence.MapSolrStoreFactory</factory-class-name>
-          <write-delay-seconds>10</write-delay-seconds>
+          <write-delay-seconds>0</write-delay-seconds>
           <properties>
             <property name="solrServerUrls">http://T1:8983/solr/,http://T2:18983/solr/</property>
             <property name="connectTimeout">60</property>
             <property name="readTimeout">60</property>
           </properties>
         </map-store>
+        -->
     </map>
 
     <multimap name="default">
@@ -255,7 +259,7 @@
         <!-- Persistence -->
         <map-store enabled="true">
           <factory-class-name>org.hazelcast.server.persistence.MapSolrStoreFactory</factory-class-name>
-          <write-delay-seconds>3</write-delay-seconds>
+          <write-delay-seconds>0</write-delay-seconds>
           <properties>
             <property name="solrServerUrls">http://T1:8983/solr/,http://T2:18983/solr/</property>
             <property name="connectTimeout">60</property>
@@ -282,7 +286,7 @@
         <!-- Persistence -->
         <map-store enabled="true">
           <factory-class-name>org.hazelcast.server.persistence.MapSolrStoreFactory</factory-class-name>
-          <write-delay-seconds>1</write-delay-seconds>
+          <write-delay-seconds>0</write-delay-seconds>
           <properties>
             <property name="solrServerUrls">http://T1:8983/solr/,http://T2:18983/solr/</property>
             <property name="connectTimeout">60</property>

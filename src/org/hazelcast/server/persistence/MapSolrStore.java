@@ -88,7 +88,7 @@ public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
 
   @Override
   public void init(HazelcastInstance hazelcastInstance, Properties properties, String mapName) {
-    int syncinterval = 10;
+    int syncinterval = 30;
     _scheduleSync.scheduleWithFixedDelay(this, 10, syncinterval, TimeUnit.SECONDS);
     _logger.log(Level.INFO, this.getClass().getCanonicalName() + ":" + _mapName + ":init()Íê³É!");
   }
