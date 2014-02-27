@@ -23,7 +23,7 @@
       <property name="hazelcast.jmx">true</property>
       <property name="hazelcast.version.check.enabled">false</property>
       <property name="hazelcast.memcache.enabled">true</property>
-      <property name="hazelcast.rest.enabled">false</property>
+      <property name="hazelcast.rest.enabled">true</property>
       <property name="hazelcast.wait.seconds.before.join">5</property> 
 
       <property name="hazelcast.elastic.memory.enabled">false</property> 
