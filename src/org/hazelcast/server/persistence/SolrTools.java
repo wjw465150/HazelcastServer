@@ -8,6 +8,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.util.Map;
+import java.util.TimeZone;
 
 import org.wjw.efjson.JsonArray;
 import org.wjw.efjson.JsonObject;
@@ -15,6 +16,7 @@ import org.wjw.efjson.JsonObject;
 public abstract class SolrTools {
   static final String UTF_8 = "UTF-8"; //HTTPÇëÇó×Ö·û¼¯
   static final String LOGDateFormatPattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'";
+  static long TIMEZONE_OFFSET = TimeZone.getDefault().getRawOffset();
 
   static final String SOLR_SERVER_URLS = "solrServerUrls";
   static final String CONNECT_TIMEOUT = "connectTimeout";
