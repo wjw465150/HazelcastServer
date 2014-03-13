@@ -28,25 +28,14 @@ public abstract class SolrTools {
   //@wjw_note: schema.xml需要添加:   <field name="HZ_CTIME" type="date" indexed="true" stored="true"/>
   static final String F_HZ_CTIME = "HZ_CTIME";
 
-  //@wjw_note: schema.xml需要添加:   <field name="HZ_DATA" type="text_general" indexed="false" stored="true"/>
+  //@wjw_note: schema.xml需要添加:   <field name="HZ_CLASS" type="string" indexed="true" stored="true"/>
+  static final String F_HZ_CLASS = "HZ_CLASS";
+  
+  //@wjw_note: schema.xml需要添加:   <field name="HZ_DATA" type="string" indexed="false" stored="true"/>
   static final String F_HZ_DATA = "HZ_DATA";
 
   private SolrTools() {
     //
-  }
-
-  public static Object byteToObject(byte[] bb) throws Exception {
-    if (bb == null) {
-      return null;
-    } else {
-      return KryoSerializer.read(bb);
-    }
-  }
-
-  public static byte[] objectToByte(Object object) throws Exception {
-    byte[] bb = KryoSerializer.write(object);
-
-    return bb;
   }
 
   @SuppressWarnings("unchecked")

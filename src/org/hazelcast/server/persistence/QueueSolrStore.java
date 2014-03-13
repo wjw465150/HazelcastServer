@@ -176,9 +176,9 @@ public class QueueSolrStore<T> implements QueueStore<T>, Runnable {
         return null;
       }
 
+      String sClass = doc.getString(SolrTools.F_HZ_CLASS);
       String sValue = doc.getString(SolrTools.F_HZ_DATA);
-      byte[] bValue = Base64.decode(sValue);
-      return (T) SolrTools.byteToObject(bValue);
+      return (T) JsonObject.fromJson(sValue, Class.forName(sClass));
     } catch (Exception e) {
       _logger.log(Level.SEVERE, e.getMessage(), e);
       return null;
@@ -226,13 +226,12 @@ public class QueueSolrStore<T> implements QueueStore<T>, Runnable {
   public void store(Long key, T value) {
     try {
       String sKey = _queueName + ":" + key;
-      byte[] bValue = SolrTools.objectToByte(value);
-      String sValue = Base64.encodeBytes(bValue);
 
       JsonObject doc = new JsonObject();
       doc.putString(SolrTools.F_ID, sKey);
       doc.putNumber(SolrTools.F_VERSION, 0); // =0 Don¡¯t care (normal overwrite if exists)
-      doc.putString(SolrTools.F_HZ_DATA, sValue);
+      doc.putString(SolrTools.F_HZ_CLASS, value.getClass().getName());
+      doc.putString(SolrTools.F_HZ_DATA, JsonObject.toJson(value));
 
       JsonObject jsonResponse = null;
       for (int i = 0; i < _urlUpdates.size(); i++) {

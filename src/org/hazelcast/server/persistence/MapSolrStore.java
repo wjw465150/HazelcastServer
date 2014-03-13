@@ -202,9 +202,9 @@ public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
         }
       }
 
+      String sClass = doc.getString(SolrTools.F_HZ_CLASS);
       String sValue = doc.getString(SolrTools.F_HZ_DATA);
-      byte[] bValue = Base64.decode(sValue);
-      return (V) SolrTools.byteToObject(bValue);
+      return (V) JsonObject.fromJson(sValue, Class.forName(sClass));
     } catch (Exception e) {
       _logger.log(Level.SEVERE, e.getMessage(), e);
       return null;
@@ -252,8 +252,6 @@ public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
   public void store(K key, V value) {
     try {
       String sKey = _mapName + ":" + key.toString();
-      byte[] bValue = SolrTools.objectToByte(value);
-      String sValue = Base64.encodeBytes(bValue);
 
       JsonObject doc = new JsonObject();
       doc.putString(SolrTools.F_ID, sKey);
@@ -262,7 +260,9 @@ public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
         DateFormat dateFormat = new SimpleDateFormat(SolrTools.LOGDateFormatPattern);
         doc.putString(SolrTools.F_HZ_CTIME, dateFormat.format(new java.util.Date(System.currentTimeMillis() + SolrTools.TIMEZONE_OFFSET)));
       }
-      doc.putString(SolrTools.F_HZ_DATA, sValue);
+
+      doc.putString(SolrTools.F_HZ_CLASS, value.getClass().getName());
+      doc.putString(SolrTools.F_HZ_DATA, JsonObject.toJson(value));
 
       JsonObject jsonResponse = null;
       for (int i = 0; i < _urlUpdates.size(); i++) {
