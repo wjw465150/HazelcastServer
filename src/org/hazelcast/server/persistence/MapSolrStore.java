@@ -177,16 +177,22 @@ public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
       String sKey = _mapName + ":" + key.toString();
 
       JsonObject doc = null;
+      Exception ex = null;
       for (int i = 0; i < _urlGets.size(); i++) {
         try {
           doc = SolrTools.getDoc(getSolrGetUrl(), _connectTimeout, _readTimeout, sKey);
+          ex = null;
           break;
         } catch (Exception e) {
+          ex = e;
           try {
             Thread.sleep(100);
           } catch (InterruptedException e1) {
           }
         }
+      }
+      if (ex != null) {
+        throw ex;
       }
       if (doc == null) {
         return null;
@@ -207,7 +213,7 @@ public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
       return (V) JsonObject.fromJson(sValue, Class.forName(sClass));
     } catch (Exception e) {
       _logger.log(Level.SEVERE, e.getMessage(), e);
-      return null;
+      throw new RuntimeException(e);
     }
   }
 
@@ -219,18 +225,24 @@ public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
       doc.putObject("delete", (new JsonObject()).putString(SolrTools.F_ID, sKey));
 
       JsonObject jsonResponse = null;
+      Exception ex = null;
       for (int i = 0; i < _urlUpdates.size(); i++) {
         try {
           jsonResponse = SolrTools.delDoc(getSolrUpdateUrl(), _connectTimeout, _readTimeout, doc);
           if (SolrTools.getStatus(jsonResponse) == 0) {
+            ex = null;
             break;
           }
         } catch (Exception e) {
+          ex = e;
           try {
             Thread.sleep(100);
           } catch (InterruptedException e1) {
           }
         }
+      }
+      if (ex != null) {
+        throw ex;
       }
 
       if (SolrTools.getStatus(jsonResponse) != 0) {
@@ -238,6 +250,7 @@ public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
       }
     } catch (Exception e) {
       _logger.log(Level.SEVERE, e.getMessage(), e);
+      throw new RuntimeException(e);
     }
   }
 
@@ -265,18 +278,24 @@ public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
       doc.putString(SolrTools.F_HZ_DATA, JsonObject.toJson(value));
 
       JsonObject jsonResponse = null;
+      Exception ex = null;
       for (int i = 0; i < _urlUpdates.size(); i++) {
         try {
           jsonResponse = SolrTools.updateDoc(getSolrUpdateUrl(), _connectTimeout, _readTimeout, doc);
           if (SolrTools.getStatus(jsonResponse) == 0) {
+            ex = null;
             break;
           }
         } catch (Exception e) {
+          ex = e;
           try {
             Thread.sleep(100);
           } catch (InterruptedException e1) {
           }
         }
+      }
+      if (ex != null) {
+        throw ex;
       }
 
       if (SolrTools.getStatus(jsonResponse) != 0) {
@@ -284,6 +303,7 @@ public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
       }
     } catch (Exception e) {
       _logger.log(Level.SEVERE, e.getMessage(), e);
+      throw new RuntimeException(e);
     }
   }
 
