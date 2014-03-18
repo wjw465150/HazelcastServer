@@ -18,4 +18,4 @@ HazelcastServer是基于开源项目[Hazelcast](https://github.com/hazelcast/haz
 
 ###### HazelcastServer的扩展:
 >
-- [x] 使用LevelDB或者BerkeleyDB来持久化Map,防止意外当机引起的数据丢失!
+- [x] 使用Solr Cloud来持久化Map,防止意外当机引起的数据丢失!

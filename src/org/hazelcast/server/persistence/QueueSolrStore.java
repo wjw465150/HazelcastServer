@@ -78,8 +78,9 @@ public class QueueSolrStore<T> implements QueueStore<T>, Runnable {
 
       _logger.log(Level.INFO, this.getClass().getCanonicalName() + ":" + _queueName + ":init()Íê³É!");
     } catch (Exception ex) {
-      _logger.log(Level.SEVERE, ex.getMessage(), ex);
-      throw new RuntimeException(ex);
+      this._urlGets = null;
+      this._urlUpdates = null;
+      _logger.log(Level.WARNING, ex.getMessage(), ex);
     }
   }
 

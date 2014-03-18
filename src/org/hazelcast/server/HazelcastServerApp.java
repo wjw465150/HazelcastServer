@@ -14,7 +14,6 @@ import com.hazelcast.config.ClasspathXmlConfig;
 import com.hazelcast.config.MapConfig;
 import com.hazelcast.config.MapConfigReadOnly;
 import com.hazelcast.config.QueueConfig;
-import com.hazelcast.config.QueueStoreConfig;
 import com.hazelcast.core.DistributedObjectEvent;
 import com.hazelcast.core.DistributedObjectListener;
 import com.hazelcast.core.EntryEvent;
@@ -75,15 +74,15 @@ public class HazelcastServerApp<K, V> implements EntryListener<K, V>, Distribute
    * @param args
    */
   public HazelcastServerApp(String args[]) {
+    if (!doStart()) {
+      System.exit(-1);
+    }
+
     java.lang.Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
       public void run() {
         doStop();
       }
     }));
-
-    if (!doStart()) {
-      System.exit(-1);
-    }
   }
 
   public boolean doStart() {
@@ -103,11 +102,13 @@ public class HazelcastServerApp<K, V> implements EntryListener<K, V>, Distribute
       //从配置文件里判断MapStore的值来预加载是持久化的Queue!
       Map<String, QueueConfig> mapQueueConfig = _hazelcastInstance.getConfig().getQueueConfigs();
       for (String queueName : mapQueueConfig.keySet()) {
+        if (queueName.contains("*")) {
+          continue;
+        }
         QueueConfig qconf = mapQueueConfig.get(queueName);
-        QueueStoreConfig queueStoreConfig = qconf.getQueueStoreConfig();
-        if (queueStoreConfig != null && queueStoreConfig.isEnabled() == true) {
-          queueStoreConfig.getProperties().setProperty(HAZELCAST_INSTANCE_NAME, _hazelcastInstance.getName());
-          System.out.println("Load Queue.Map from MapStore:" + "q:" + queueName);
+        if (qconf != null && qconf.getQueueStoreConfig() != null && qconf.getQueueStoreConfig().isEnabled() == true) {
+          qconf.getQueueStoreConfig().getProperties().setProperty(HAZELCAST_INSTANCE_NAME, _hazelcastInstance.getName());
+          System.out.println("Load Queue from MapStore:" + "q:" + queueName);
           _hazelcastInstance.getQueue(queueName);
         }
       }
@@ -115,9 +116,12 @@ public class HazelcastServerApp<K, V> implements EntryListener<K, V>, Distribute
       //从配置文件里判断MapStore的值来预加载是持久化的Map!
       Map<String, MapConfig> mapMapConfig = _hazelcastInstance.getConfig().getMapConfigs();
       for (String mapName : mapMapConfig.keySet()) {
+        if (mapName.contains("*")) {
+          continue;
+        }
         MapConfig mconf = mapMapConfig.get(mapName);
-        if (mconf.getMapStoreConfig() != null && mconf.getMapStoreConfig().isEnabled()) {
-          System.out.println("Load Map from MapStore:" + mapName);
+        if (mconf.getMapStoreConfig() != null && mconf.getMapStoreConfig() != null && mconf.getMapStoreConfig().isEnabled()) {
+          System.out.println("Load Map from MapStore:" + "m:" + mapName);
           _hazelcastInstance.getMap(mapName);
         }
       }
@@ -177,9 +181,9 @@ public class HazelcastServerApp<K, V> implements EntryListener<K, V>, Distribute
 
         Field field = imap.getClass().getSuperclass().getDeclaredField("mapConfig");
         field.setAccessible(true);
-        MapConfigReadOnly mapStoreConfig = (MapConfigReadOnly) field.get(imap);
+        MapConfigReadOnly mapConfig = (MapConfigReadOnly) field.get(imap);
 
-        if (mapStoreConfig != null && mapStoreConfig.getMapStoreConfig().isEnabled()) {
+        if (mapConfig != null && mapConfig.getMapStoreConfig() != null && mapConfig.getMapStoreConfig().isEnabled()) {
           String idListener = imap.addEntryListener(this, true);
           _mapEntryListener.put(imap.getName(), idListener);
         }

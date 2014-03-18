@@ -81,8 +81,9 @@ public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
         }
       }
     } catch (Exception ex) {
-      _logger.log(Level.SEVERE, ex.getMessage(), ex);
-      throw new RuntimeException(ex);
+      this._urlGets = null;
+      this._urlUpdates = null;
+      _logger.log(Level.WARNING, ex.getMessage(), ex);
     }
   }
 
@@ -271,7 +272,7 @@ public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
       doc.putNumber(SolrTools.F_VERSION, 0); // =0 Don¡¯t care (normal overwrite if exists)
       if (_mapName.startsWith(MEMCACHED_PREFIX)) {
         DateFormat dateFormat = new SimpleDateFormat(SolrTools.LOGDateFormatPattern);
-        doc.putString(SolrTools.F_HZ_CTIME, dateFormat.format(new java.util.Date(System.currentTimeMillis() + SolrTools.TIMEZONE_OFFSET)));
+        doc.putString(SolrTools.F_HZ_CTIME, dateFormat.format(new java.util.Date(System.currentTimeMillis())));
       }
 
       doc.putString(SolrTools.F_HZ_CLASS, value.getClass().getName());

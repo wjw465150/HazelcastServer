@@ -8,7 +8,6 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.util.Map;
-import java.util.TimeZone;
 
 import org.wjw.efjson.JsonArray;
 import org.wjw.efjson.JsonObject;
@@ -16,7 +15,6 @@ import org.wjw.efjson.JsonObject;
 public abstract class SolrTools {
   static final String UTF_8 = "UTF-8"; //HTTP请求字符集
   static final String LOGDateFormatPattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'";
-  static long TIMEZONE_OFFSET = TimeZone.getDefault().getRawOffset();
 
   static final String SOLR_SERVER_URLS = "solrServerUrls";
   static final String CONNECT_TIMEOUT = "connectTimeout";
@@ -25,17 +23,21 @@ public abstract class SolrTools {
   static final String F_ID = "id";
   static final String F_VERSION = "_version_";
 
-  //@wjw_note: schema.xml需要添加:   <field name="HZ_CTIME" type="date" indexed="true" stored="true"/>
-  static final String F_HZ_CTIME = "HZ_CTIME";
-
-  //@wjw_note: schema.xml需要添加:   <field name="HZ_CLASS" type="string" indexed="true" stored="true"/>
-  static final String F_HZ_CLASS = "HZ_CLASS";
-  
-  //@wjw_note: schema.xml需要添加:   <field name="HZ_DATA" type="string" indexed="false" stored="true"/>
-  static final String F_HZ_DATA = "HZ_DATA";
+  //@wjw_note: schema.xml需要添加:   
+  //<dynamicField name="*_dt"  type="date"    indexed="true"  stored="true"/>
+  //<dynamicField name="*_s"  type="string"  indexed="true"  stored="true" />
+  static final String F_HZ_CTIME = "HZ_T_dt";
+  static final String F_HZ_CLASS = "HZ_C_s";
+  static final String F_HZ_DATA = "HZ_V_s";
 
   private SolrTools() {
     //
+  }
+
+  public static String sanitizeFilename(String unsanitized) {
+    return unsanitized
+        .replaceAll("[\\?\\\\/:|<>\\*]", " ") // filter out ? \ / : | < > *
+        .replaceAll("\\s", "_"); // white space as underscores
   }
 
   @SuppressWarnings("unchecked")
@@ -270,6 +272,18 @@ public abstract class SolrTools {
       //        } catch (Exception ex) {
       //        }
       //      }
+    }
+
+  }
+
+  public static class WrapperEntry<K, V> {
+    final public java.util.Date _birthday = new java.util.Date();
+    public K _key;
+    public V _value;
+
+    public WrapperEntry(K key, V value) {
+      _key = key;
+      _value = value;
     }
 
   }
