@@ -42,6 +42,7 @@ public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
   private java.util.List<String> _urlSelects;
   private boolean _loadAll = false; //是否在初始化时就加载数据
 
+  private HazelcastInstance _hazelcastInstance;
   private String _mapName;
   private Properties _properties;
 
@@ -101,6 +102,7 @@ public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
 
   @Override
   public void init(HazelcastInstance hazelcastInstance, Properties properties, String mapName) {
+    _hazelcastInstance = hazelcastInstance;
     try {
       solrCommit();
     } catch (Exception ex) {
@@ -442,6 +444,10 @@ public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
     }
 
     Set<K> set = new HashSet<K>();
+    Lock lock = _hazelcastInstance.getLock(_mapName);
+    if (lock.tryLock() == false) {
+      return null;
+    }
     try {
       boolean stop = false;
       int startIndex = 0;
@@ -468,6 +474,7 @@ public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
 
           set.add((K) sKey);
         }
+        _logger.log(Level.INFO, "loadAllKeys():" + _mapName + ":size:" + set.size());
       }
       if (set.size() == 0) {
         return null;
@@ -477,6 +484,8 @@ public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
     } catch (Exception e) {
       _logger.log(Level.SEVERE, e.getMessage(), e);
       throw new RuntimeException(e);
+    } finally {
+      lock.unlock();
     }
   }
 
