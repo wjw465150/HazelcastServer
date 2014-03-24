@@ -124,6 +124,7 @@
             <property name="solrServerUrls">http://T1:8983/solr/,http://T2:18983/solr/</property>
             <property name="connectTimeout">60</property>
             <property name="readTimeout">60</property>
+            <property name="loadAll">true</property>
           </properties>
         </queue-store>
         -->
@@ -203,13 +204,14 @@
         
         <!-- Persistence -->
         <!--
-        <map-store enabled="false">
+        <map-store initial-mode="EAGER" enabled="false">
           <factory-class-name>org.hazelcast.server.persistence.MapSolrStoreFactory</factory-class-name>
           <write-delay-seconds>0</write-delay-seconds>
           <properties>
             <property name="solrServerUrls">http://T1:8983/solr/,http://T2:18983/solr/</property>
             <property name="connectTimeout">60</property>
             <property name="readTimeout">60</property>
+            <property name="loadAll">true</property>
           </properties>
         </map-store>
         -->
@@ -267,13 +269,14 @@
         <read-backup-data>true</read-backup-data>
         
         <!-- Persistence -->
-        <map-store enabled="true">
+        <map-store initial-mode="EAGER" enabled="true">
           <factory-class-name>org.hazelcast.server.persistence.MapSolrStoreFactory</factory-class-name>
           <write-delay-seconds>0</write-delay-seconds>
           <properties>
             <property name="solrServerUrls">http://T1:8983/solr/,http://T2:18983/solr/</property>
             <property name="connectTimeout">60</property>
             <property name="readTimeout">60</property>
+            <property name="loadAll">true</property>
           </properties>
         </map-store>
     </map>
@@ -294,13 +297,43 @@
         <read-backup-data>true</read-backup-data>
         
         <!-- Persistence -->
-        <map-store enabled="true">
+        <map-store initial-mode="EAGER" enabled="true">
           <factory-class-name>org.hazelcast.server.persistence.MapSolrStoreFactory</factory-class-name>
           <write-delay-seconds>0</write-delay-seconds>
           <properties>
             <property name="solrServerUrls">http://T1:8983/solr/,http://T2:18983/solr/</property>
             <property name="connectTimeout">60</property>
             <property name="readTimeout">60</property>
+            <property name="loadAll">true</property>
+          </properties>
+        </map-store>
+    </map>
+    
+    <!--  用户自定义Map,实现可持久化的Incr -->
+    <map name="AtomicLong">
+        <in-memory-format>BINARY</in-memory-format>
+        
+        <backup-count>1</backup-count>
+        <async-backup-count>0</async-backup-count>
+        
+        <time-to-live-seconds>0</time-to-live-seconds>
+        <max-idle-seconds>0</max-idle-seconds>
+        <eviction-policy>NONE</eviction-policy>
+        <max-size policy="PER_NODE">0</max-size>
+        <eviction-percentage>25</eviction-percentage>
+        <merge-policy>com.hazelcast.map.merge.PassThroughMergePolicy</merge-policy>
+
+        <read-backup-data>true</read-backup-data>
+        
+        <!-- Persistence -->
+        <map-store initial-mode="EAGER" enabled="true">
+          <factory-class-name>org.hazelcast.server.persistence.MapSolrStoreFactory</factory-class-name>
+          <write-delay-seconds>0</write-delay-seconds>
+          <properties>
+            <property name="solrServerUrls">http://T1:8983/solr/,http://T2:18983/solr/</property>
+            <property name="connectTimeout">60</property>
+            <property name="readTimeout">60</property>
+            <property name="loadAll">true</property>
           </properties>
         </map-store>
     </map>

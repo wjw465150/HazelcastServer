@@ -4,6 +4,8 @@ import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Collection;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
@@ -37,6 +39,8 @@ public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
 
   private java.util.List<String> _urlGets;
   private java.util.List<String> _urlUpdates;
+  private java.util.List<String> _urlSelects;
+  private boolean _loadAll = false; //是否在初始化时就加载数据
 
   private String _mapName;
   private Properties _properties;
@@ -45,6 +49,8 @@ public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
   private int _indexGet = -1;
   private Lock _lockPost = new ReentrantLock();
   private int _indexPost = -1;
+  private Lock _lockSelect = new ReentrantLock();
+  private int _indexSelect = -1;
 
   private ScheduledExecutorService _scheduleSync = Executors.newSingleThreadScheduledExecutor(); //刷新Solr集群状态的Scheduled
 
@@ -63,6 +69,9 @@ public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
       if (_properties.getProperty(SolrTools.READ_TIMEOUT) != null) {
         _readTimeout = Integer.parseInt(_properties.getProperty(SolrTools.READ_TIMEOUT)) * 1000;
       }
+      if (_properties.getProperty(SolrTools.LOAD_ALL) != null) {
+        _loadAll = Boolean.parseBoolean(_properties.getProperty(SolrTools.LOAD_ALL));
+      }
 
       JsonArray stateArray = SolrTools.getClusterState(_solrServerUrls, _connectTimeout, _readTimeout);
       if (stateArray == null) {
@@ -73,16 +82,19 @@ public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
 
       this._urlGets = new java.util.ArrayList<String>(stateArray.size());
       this._urlUpdates = new java.util.ArrayList<String>(stateArray.size());
+      this._urlSelects = new java.util.ArrayList<String>(stateArray.size());
       for (int i = 0; i < stateArray.size(); i++) {
         JsonObject jNode = stateArray.<JsonObject> get(i);
         if (jNode.getString("state").equalsIgnoreCase("active") || jNode.getString("state").equalsIgnoreCase("recovering")) {
           this._urlGets.add(jNode.getString("base_url") + "/get?id=");
           this._urlUpdates.add(jNode.getString("base_url") + "/update");
+          this._urlSelects.add(jNode.getString("base_url") + "/select");
         }
       }
     } catch (Exception ex) {
       this._urlGets = null;
       this._urlUpdates = null;
+      this._urlSelects = null;
       _logger.log(Level.WARNING, ex.getMessage(), ex);
     }
   }
@@ -136,6 +148,24 @@ public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
     }
   }
 
+  public String getSolrSelectUrl() {
+    if (_urlSelects.size() == 1) {
+      return _urlSelects.get(0);
+    }
+
+    _lockSelect.lock();
+    try {
+      _indexSelect++;
+      if (_indexSelect >= _urlSelects.size()) {
+        _indexSelect = 0;
+      }
+
+      return _urlSelects.get(_indexSelect);
+    } finally {
+      _lockSelect.unlock();
+    }
+  }
+
   @Override
   //刷新Solr集群状态的Scheduled
   public void run() {
@@ -147,11 +177,13 @@ public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
 
     java.util.List<String> newUrlGets = new java.util.ArrayList<String>(stateArray.size());
     java.util.List<String> newUrlUpdates = new java.util.ArrayList<String>(stateArray.size());
+    java.util.List<String> newUrlSelects = new java.util.ArrayList<String>(stateArray.size());
     for (int i = 0; i < stateArray.size(); i++) {
       JsonObject jj = stateArray.<JsonObject> get(i);
       if (jj.getString("state").equalsIgnoreCase("active") || jj.getString("state").equalsIgnoreCase("recovering")) {
         newUrlGets.add(jj.getString("base_url") + "/get?id=");
         newUrlUpdates.add(jj.getString("base_url") + "/update");
+        newUrlSelects.add(jj.getString("base_url") + "/select");
       }
     }
 
@@ -170,48 +202,181 @@ public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
     } finally {
       _lockPost.unlock();
     }
+
+    _lockSelect.lock();
+    try {
+      this._urlSelects.clear();
+      this._urlSelects = newUrlSelects;
+    } finally {
+      _lockSelect.unlock();
+    }
+  }
+
+  private void solrDelete(String sKey) throws Exception {
+    String id = _mapName + ":" + sKey;
+    JsonObject doc = new JsonObject();
+    doc.putObject("delete", (new JsonObject()).putString(SolrTools.F_ID, id));
+
+    JsonObject jsonResponse = null;
+    Exception ex = null;
+    for (int i = 0; i < _urlUpdates.size(); i++) {
+      try {
+        jsonResponse = SolrTools.delDoc(getSolrUpdateUrl(), _connectTimeout, _readTimeout, doc);
+        if (SolrTools.getStatus(jsonResponse) == 0) {
+          ex = null;
+          break;
+        }
+      } catch (Exception e) {
+        ex = e;
+        try {
+          Thread.sleep(100);
+        } catch (InterruptedException e1) {
+        }
+      }
+    }
+    if (ex != null) {
+      throw ex;
+    }
+
+    if (SolrTools.getStatus(jsonResponse) != 0) {
+      throw new RuntimeException(jsonResponse.encodePrettily());
+    }
+  }
+
+  private V solrGet(String sKey) throws Exception {
+    String id = _mapName + ":" + sKey;
+
+    JsonObject doc = null;
+    Exception ex = null;
+    for (int i = 0; i < _urlGets.size(); i++) {
+      try {
+        doc = SolrTools.getDoc(getSolrGetUrl(), _connectTimeout, _readTimeout, id);
+        ex = null;
+        break;
+      } catch (Exception e) {
+        ex = e;
+        try {
+          Thread.sleep(100);
+        } catch (InterruptedException e1) {
+        }
+      }
+    }
+    if (ex != null) {
+      throw ex;
+    }
+    if (doc == null) {
+      return null;
+    }
+
+    if (_mapName.startsWith(MEMCACHED_PREFIX)) { //判断memcache是否超期
+      DateFormat dateFormat = new SimpleDateFormat(SolrTools.LOGDateFormatPattern);
+
+      Date birthday = dateFormat.parse(doc.getString(SolrTools.F_HZ_CTIME));
+      if ((System.currentTimeMillis() - birthday.getTime()) >= DAY_30) { //超期30天
+        solrDelete(sKey);
+        return null;
+      }
+    }
+
+    String sClass = doc.getString(SolrTools.F_HZ_CLASS);
+    String sValue = doc.getString(SolrTools.F_HZ_DATA);
+    return (V) JsonObject.fromJson(sValue, Class.forName(sClass));
+  }
+
+  private void solrStore(String key, V value) throws Exception {
+    String sKey = _mapName + ":" + key.toString();
+
+    JsonObject doc = new JsonObject();
+    doc.putString(SolrTools.F_ID, sKey);
+    doc.putNumber(SolrTools.F_VERSION, 0); // =0 Don’t care (normal overwrite if exists)
+    if (_mapName.startsWith(MEMCACHED_PREFIX)) {
+      DateFormat dateFormat = new SimpleDateFormat(SolrTools.LOGDateFormatPattern);
+      doc.putString(SolrTools.F_HZ_CTIME, dateFormat.format(new java.util.Date(System.currentTimeMillis())));
+    }
+
+    doc.putString(SolrTools.F_HZ_CLASS, value.getClass().getName());
+    doc.putString(SolrTools.F_HZ_DATA, JsonObject.toJson(value));
+
+    JsonObject jsonResponse = null;
+    Exception ex = null;
+    for (int i = 0; i < _urlUpdates.size(); i++) {
+      try {
+        jsonResponse = SolrTools.updateDoc(getSolrUpdateUrl(), _connectTimeout, _readTimeout, doc);
+        if (SolrTools.getStatus(jsonResponse) == 0) {
+          ex = null;
+          break;
+        }
+      } catch (Exception e) {
+        ex = e;
+        try {
+          Thread.sleep(100);
+        } catch (InterruptedException e1) {
+        }
+      }
+    }
+    if (ex != null) {
+      throw ex;
+    }
+
+    if (SolrTools.getStatus(jsonResponse) != 0) {
+      throw new RuntimeException(jsonResponse.encodePrettily());
+    }
+  }
+
+  private void solrCommit() throws Exception {
+    JsonObject jsonResponse = null;
+    Exception ex = null;
+    for (int i = 0; i < _urlUpdates.size(); i++) {
+      try {
+        jsonResponse = SolrTools.solrCommit(getSolrUpdateUrl(), _connectTimeout, _readTimeout);
+        if (SolrTools.getStatus(jsonResponse) == 0) {
+          ex = null;
+          break;
+        }
+      } catch (Exception e) {
+        ex = e;
+        try {
+          Thread.sleep(100);
+        } catch (InterruptedException e1) {
+        }
+      }
+    }
+    if (ex != null) {
+      throw ex;
+    }
+
+    if (SolrTools.getStatus(jsonResponse) != 0) {
+      throw new RuntimeException(jsonResponse.encodePrettily());
+    }
+  }
+
+  private JsonArray solrSelect(int startIndex) throws Exception {
+    JsonArray docs = null;
+    Exception ex = null;
+    for (int i = 0; i < _urlSelects.size(); i++) {
+      try {
+        docs = SolrTools.selectDocs(getSolrSelectUrl(), _connectTimeout, _readTimeout, "id:" + _mapName + "\\:*", startIndex, SolrTools.PAGE_SIZE);
+        ex = null;
+        break;
+      } catch (Exception e) {
+        ex = e;
+        try {
+          Thread.sleep(100);
+        } catch (InterruptedException e1) {
+        }
+      }
+    }
+    if (ex != null) {
+      throw ex;
+    }
+
+    return docs;
   }
 
   @Override
   public V load(K key) {
     try {
-      String sKey = _mapName + ":" + key.toString();
-
-      JsonObject doc = null;
-      Exception ex = null;
-      for (int i = 0; i < _urlGets.size(); i++) {
-        try {
-          doc = SolrTools.getDoc(getSolrGetUrl(), _connectTimeout, _readTimeout, sKey);
-          ex = null;
-          break;
-        } catch (Exception e) {
-          ex = e;
-          try {
-            Thread.sleep(100);
-          } catch (InterruptedException e1) {
-          }
-        }
-      }
-      if (ex != null) {
-        throw ex;
-      }
-      if (doc == null) {
-        return null;
-      }
-
-      if (_mapName.startsWith(MEMCACHED_PREFIX)) { //判断memcache是否超期
-        DateFormat dateFormat = new SimpleDateFormat(SolrTools.LOGDateFormatPattern);
-
-        Date birthday = dateFormat.parse(doc.getString(SolrTools.F_HZ_CTIME));
-        if ((System.currentTimeMillis() - birthday.getTime()) >= DAY_30) { //超期30天
-          this.delete(key);
-          return null;
-        }
-      }
-
-      String sClass = doc.getString(SolrTools.F_HZ_CLASS);
-      String sValue = doc.getString(SolrTools.F_HZ_DATA);
-      return (V) JsonObject.fromJson(sValue, Class.forName(sClass));
+      return solrGet(key.toString());
     } catch (Exception e) {
       _logger.log(Level.SEVERE, e.getMessage(), e);
       throw new RuntimeException(e);
@@ -221,34 +386,7 @@ public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
   @Override
   public void delete(K key) {
     try {
-      String sKey = _mapName + ":" + key.toString();
-      JsonObject doc = new JsonObject();
-      doc.putObject("delete", (new JsonObject()).putString(SolrTools.F_ID, sKey));
-
-      JsonObject jsonResponse = null;
-      Exception ex = null;
-      for (int i = 0; i < _urlUpdates.size(); i++) {
-        try {
-          jsonResponse = SolrTools.delDoc(getSolrUpdateUrl(), _connectTimeout, _readTimeout, doc);
-          if (SolrTools.getStatus(jsonResponse) == 0) {
-            ex = null;
-            break;
-          }
-        } catch (Exception e) {
-          ex = e;
-          try {
-            Thread.sleep(100);
-          } catch (InterruptedException e1) {
-          }
-        }
-      }
-      if (ex != null) {
-        throw ex;
-      }
-
-      if (SolrTools.getStatus(jsonResponse) != 0) {
-        throw new RuntimeException(jsonResponse.encodePrettily());
-      }
+      solrDelete(key.toString());
     } catch (Exception e) {
       _logger.log(Level.SEVERE, e.getMessage(), e);
       throw new RuntimeException(e);
@@ -265,43 +403,7 @@ public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
   @Override
   public void store(K key, V value) {
     try {
-      String sKey = _mapName + ":" + key.toString();
-
-      JsonObject doc = new JsonObject();
-      doc.putString(SolrTools.F_ID, sKey);
-      doc.putNumber(SolrTools.F_VERSION, 0); // =0 Don’t care (normal overwrite if exists)
-      if (_mapName.startsWith(MEMCACHED_PREFIX)) {
-        DateFormat dateFormat = new SimpleDateFormat(SolrTools.LOGDateFormatPattern);
-        doc.putString(SolrTools.F_HZ_CTIME, dateFormat.format(new java.util.Date(System.currentTimeMillis())));
-      }
-
-      doc.putString(SolrTools.F_HZ_CLASS, value.getClass().getName());
-      doc.putString(SolrTools.F_HZ_DATA, JsonObject.toJson(value));
-
-      JsonObject jsonResponse = null;
-      Exception ex = null;
-      for (int i = 0; i < _urlUpdates.size(); i++) {
-        try {
-          jsonResponse = SolrTools.updateDoc(getSolrUpdateUrl(), _connectTimeout, _readTimeout, doc);
-          if (SolrTools.getStatus(jsonResponse) == 0) {
-            ex = null;
-            break;
-          }
-        } catch (Exception e) {
-          ex = e;
-          try {
-            Thread.sleep(100);
-          } catch (InterruptedException e1) {
-          }
-        }
-      }
-      if (ex != null) {
-        throw ex;
-      }
-
-      if (SolrTools.getStatus(jsonResponse) != 0) {
-        throw new RuntimeException(jsonResponse.encodePrettily());
-      }
+      solrStore(key.toString(), value);
     } catch (Exception e) {
       _logger.log(Level.SEVERE, e.getMessage(), e);
       throw new RuntimeException(e);
@@ -316,13 +418,73 @@ public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
   }
 
   @Override
-  public Map<K, V> loadAll(Collection<K> keys) { //@wjw_note: 不知道具体个数,此处必须返回null
-    return null;
+  public Map<K, V> loadAll(Collection<K> keys) {
+    if (_loadAll == false) {
+      return null;
+    }
+
+    Map<K, V> map = new HashMap<K, V>();
+    try {
+      //1. 先commit
+      solrCommit();
+
+      //2. 再查询
+      for (K key : keys) {
+        V value = solrGet(key.toString());
+        if (value != null) {
+          map.put(key, value);
+        }
+      }
+      return map;
+    } catch (Exception e) {
+      _logger.log(Level.SEVERE, e.getMessage(), e);
+      throw new RuntimeException(e);
+    }
   }
 
   @Override
-  public Set<K> loadAllKeys() { //@wjw_note: 不知道具体个数,此处必须返回null
-    return null;
+  public Set<K> loadAllKeys() {
+    if (_loadAll == false) {
+      return null;
+    }
+
+    Set<K> set = new HashSet<K>();
+    try {
+      //1. 先commit
+      solrCommit();
+
+      //2. 再分页查询
+      boolean stop = false;
+      int startIndex = 0;
+      while (!stop) {
+        JsonArray docs = solrSelect(startIndex);
+        if (docs.size() == 0) {
+          break;
+        }
+        startIndex = startIndex + docs.size();
+
+        for (int i = 0; i < docs.size(); i++) {
+          String id = ((JsonObject) docs.get(i)).getString(SolrTools.F_ID);
+          String sKey = id.substring((_mapName + ":").length());
+
+          if (_mapName.startsWith(MEMCACHED_PREFIX)) { //判断memcache是否超期
+            DateFormat dateFormat = new SimpleDateFormat(SolrTools.LOGDateFormatPattern);
+
+            Date birthday = dateFormat.parse(((JsonObject) docs.get(i)).getString(SolrTools.F_HZ_CTIME));
+            if ((System.currentTimeMillis() - birthday.getTime()) >= DAY_30) { //超期30天
+              solrDelete(sKey);
+              continue;
+            }
+          }
+
+          set.add((K) sKey);
+        }
+      }
+      return set;
+    } catch (Exception e) {
+      _logger.log(Level.SEVERE, e.getMessage(), e);
+      throw new RuntimeException(e);
+    }
   }
 
 }
