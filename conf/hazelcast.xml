@@ -36,7 +36,7 @@
     </group>
     <management-center enabled="false">http://localhost:8080/mancenter</management-center>
     <network>
-        <port auto-increment="true" port-count="100">5701</port>
+        <port auto-increment="true" port-count="10">5701</port>
         <outbound-ports>
             <!--
             Allowed port range when connecting to other nodes.
@@ -124,7 +124,7 @@
             <property name="solrServerUrls">http://T1:8983/solr/,http://T2:18983/solr/</property>
             <property name="connectTimeout">60</property>
             <property name="readTimeout">60</property>
-            <property name="loadAll">true</property>
+            <property name="loadAll">false</property>
           </properties>
         </queue-store>
         -->
@@ -211,7 +211,7 @@
             <property name="solrServerUrls">http://T1:8983/solr/,http://T2:18983/solr/</property>
             <property name="connectTimeout">60</property>
             <property name="readTimeout">60</property>
-            <property name="loadAll">true</property>
+            <property name="loadAll">false</property>
           </properties>
         </map-store>
         -->
@@ -276,7 +276,7 @@
             <property name="solrServerUrls">http://T1:8983/solr/,http://T2:18983/solr/</property>
             <property name="connectTimeout">60</property>
             <property name="readTimeout">60</property>
-            <property name="loadAll">true</property>
+            <property name="loadAll">false</property>
           </properties>
         </map-store>
     </map>
@@ -304,7 +304,7 @@
             <property name="solrServerUrls">http://T1:8983/solr/,http://T2:18983/solr/</property>
             <property name="connectTimeout">60</property>
             <property name="readTimeout">60</property>
-            <property name="loadAll">true</property>
+            <property name="loadAll">false</property>
           </properties>
         </map-store>
     </map>
@@ -333,7 +333,7 @@
             <property name="solrServerUrls">http://T1:8983/solr/,http://T2:18983/solr/</property>
             <property name="connectTimeout">60</property>
             <property name="readTimeout">60</property>
-            <property name="loadAll">true</property>
+            <property name="loadAll">false</property>
           </properties>
         </map-store>
     </map>

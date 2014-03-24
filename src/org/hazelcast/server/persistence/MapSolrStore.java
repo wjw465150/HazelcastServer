@@ -101,6 +101,12 @@ public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
 
   @Override
   public void init(HazelcastInstance hazelcastInstance, Properties properties, String mapName) {
+    try {
+      solrCommit();
+    } catch (Exception ex) {
+      _logger.log(Level.WARNING, ex.getMessage(), ex);
+    }
+
     int syncinterval = 30;
     _scheduleSync.scheduleWithFixedDelay(this, 10, syncinterval, TimeUnit.SECONDS);
     _logger.log(Level.INFO, this.getClass().getCanonicalName() + ":" + _mapName + ":init()完成!");
@@ -425,17 +431,17 @@ public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
 
     Map<K, V> map = new HashMap<K, V>();
     try {
-      //1. 先commit
-      solrCommit();
-
-      //2. 再查询
       for (K key : keys) {
         V value = solrGet(key.toString());
         if (value != null) {
           map.put(key, value);
         }
       }
-      return map;
+      if (map.size() == 0) {
+        return null;
+      } else {
+        return map;
+      }
     } catch (Exception e) {
       _logger.log(Level.SEVERE, e.getMessage(), e);
       throw new RuntimeException(e);
@@ -450,10 +456,6 @@ public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
 
     Set<K> set = new HashSet<K>();
     try {
-      //1. 先commit
-      solrCommit();
-
-      //2. 再分页查询
       boolean stop = false;
       int startIndex = 0;
       while (!stop) {
@@ -480,7 +482,11 @@ public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
           set.add((K) sKey);
         }
       }
-      return set;
+      if (set.size() == 0) {
+        return null;
+      } else {
+        return set;
+      }
     } catch (Exception e) {
       _logger.log(Level.SEVERE, e.getMessage(), e);
       throw new RuntimeException(e);

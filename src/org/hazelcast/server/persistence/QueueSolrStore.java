@@ -84,6 +84,12 @@ public class QueueSolrStore<T> implements QueueStore<T>, Runnable {
         }
       }
 
+      try {
+        solrCommit();
+      } catch (Exception ex) {
+        _logger.log(Level.WARNING, ex.getMessage(), ex);
+      }
+      
       int syncinterval = 30;
       _scheduleSync.scheduleWithFixedDelay(this, 10, syncinterval, TimeUnit.SECONDS);
 
@@ -394,10 +400,6 @@ public class QueueSolrStore<T> implements QueueStore<T>, Runnable {
 
     Map<Long, T> map = new HashMap<Long, T>();
     try {
-      //1. 先commit
-      solrCommit();
-
-      //2. 再查询
       for (Long key : keys) {
         T value = solrGet(key.toString());
         if (value != null) {
@@ -419,10 +421,6 @@ public class QueueSolrStore<T> implements QueueStore<T>, Runnable {
 
     Set<Long> set = new HashSet<Long>();
     try {
-      //1. 先commit
-      solrCommit();
-
-      //2. 再分页查询
       boolean stop = false;
       int startIndex = 0;
       while (!stop) {
