@@ -451,6 +451,7 @@ public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
     try {
       boolean stop = false;
       int startIndex = 0;
+      int prfexPos = (_mapName + ":").length();
       while (!stop) {
         JsonArray docs = solrSelect(startIndex);
         if (docs.size() == 0) {
@@ -458,14 +459,15 @@ public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
         }
         startIndex = startIndex + docs.size();
 
+        JsonObject doc;
         for (int i = 0; i < docs.size(); i++) {
-          String id = ((JsonObject) docs.get(i)).getString(SolrTools.F_ID);
-          String sKey = id.substring((_mapName + ":").length());
+          doc = docs.get(i);
+          String sKey = doc.getString(SolrTools.F_ID).substring(prfexPos);
 
           if (_mapName.startsWith(MEMCACHED_PREFIX)) { //判断memcache是否超期
             DateFormat dateFormat = new SimpleDateFormat(SolrTools.LOGDateFormatPattern);
 
-            Date birthday = dateFormat.parse(((JsonObject) docs.get(i)).getString(SolrTools.F_HZ_CTIME));
+            Date birthday = dateFormat.parse(doc.getString(SolrTools.F_HZ_CTIME));
             if ((System.currentTimeMillis() - birthday.getTime()) >= DAY_30) { //超期30天
               solrDelete(sKey);
               continue;
@@ -474,11 +476,12 @@ public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
 
           set.add((K) sKey);
         }
-        _logger.log(Level.INFO, "loadAllKeys():" + _mapName + ":size:" + set.size());
+        _logger.log(Level.INFO, "loadAllKeys():" + _mapName + ":size:" + set.size() + ":startIndex:" + startIndex);
       }
       if (set.size() == 0) {
         return null;
       } else {
+        _logger.log(Level.INFO, "Final loadAllKeys():" + _mapName + ":size:" + set.size() + ":startIndex:" + startIndex);
         return set;
       }
     } catch (Exception e) {

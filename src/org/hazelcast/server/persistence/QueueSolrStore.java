@@ -411,9 +411,14 @@ public class QueueSolrStore<T> implements QueueStore<T>, Runnable {
     }
 
     Set<Long> set = new HashSet<Long>();
+//    Lock lock = _hazelcastInstance.getLock(_mapName);
+//    if (lock.tryLock() == false) {
+//      return null;
+//    }
     try {
       boolean stop = false;
       int startIndex = 0;
+      int prfexPos = (_queueName + ":").length();
       while (!stop) {
         JsonArray docs = solrSelect(startIndex);
         if (docs.size() == 0) {
@@ -421,9 +426,10 @@ public class QueueSolrStore<T> implements QueueStore<T>, Runnable {
         }
         startIndex = startIndex + docs.size();
 
+        JsonObject doc;
         for (int i = 0; i < docs.size(); i++) {
-          String id = ((JsonObject) docs.get(i)).getString(SolrTools.F_ID);
-          String sKey = id.substring((_queueName + ":").length());
+          doc = docs.get(i);
+          String sKey = doc.getString(SolrTools.F_ID).substring(prfexPos);
 
           set.add(Long.parseLong(sKey));
         }
@@ -432,6 +438,8 @@ public class QueueSolrStore<T> implements QueueStore<T>, Runnable {
     } catch (Exception e) {
       _logger.log(Level.SEVERE, e.getMessage(), e);
       throw new RuntimeException(e);
+//    } finally {
+//      lock.unlock();
     }
   }
 }
