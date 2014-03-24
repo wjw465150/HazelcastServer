@@ -425,27 +425,14 @@ public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
 
   @Override
   public Map<K, V> loadAll(Collection<K> keys) {
-    if (_loadAll == false) {
-      return null;
-    }
-
-    Map<K, V> map = new HashMap<K, V>();
-    try {
-      for (K key : keys) {
-        V value = solrGet(key.toString());
-        if (value != null) {
-          map.put(key, value);
-        }
+    Map<K, V> result = new HashMap<K, V>();
+    for (K key : keys) {
+      V value = load(key);
+      if (value != null) {
+        result.put(key, value);
       }
-      if (map.size() == 0) {
-        return null;
-      } else {
-        return map;
-      }
-    } catch (Exception e) {
-      _logger.log(Level.SEVERE, e.getMessage(), e);
-      throw new RuntimeException(e);
     }
+    return result;
   }
 
   @Override

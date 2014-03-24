@@ -89,7 +89,7 @@ public class QueueSolrStore<T> implements QueueStore<T>, Runnable {
       } catch (Exception ex) {
         _logger.log(Level.WARNING, ex.getMessage(), ex);
       }
-      
+
       int syncinterval = 30;
       _scheduleSync.scheduleWithFixedDelay(this, 10, syncinterval, TimeUnit.SECONDS);
 
@@ -394,23 +394,14 @@ public class QueueSolrStore<T> implements QueueStore<T>, Runnable {
 
   @Override
   public Map<Long, T> loadAll(Collection<Long> keys) {
-    if (_loadAll == false) {
-      return null;
-    }
-
-    Map<Long, T> map = new HashMap<Long, T>();
-    try {
-      for (Long key : keys) {
-        T value = solrGet(key.toString());
-        if (value != null) {
-          map.put(key, value);
-        }
+    Map<Long, T> result = new HashMap<Long, T>();
+    for (Long key : keys) {
+      T value = load(key);
+      if (value != null) {
+        result.put(key, value);
       }
-      return map;
-    } catch (Exception e) {
-      _logger.log(Level.SEVERE, e.getMessage(), e);
-      throw new RuntimeException(e);
     }
+    return result;
   }
 
   @Override

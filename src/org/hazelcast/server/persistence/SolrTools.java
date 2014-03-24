@@ -17,7 +17,7 @@ public abstract class SolrTools {
   static final String LOGDateFormatPattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'";
 
   static final String LOAD_ALL = "loadAll";
-  static final int PAGE_SIZE = 50;
+  static final int PAGE_SIZE = 100;
   static final String SOLR_SERVER_URLS = "solrServerUrls";
   static final String CONNECT_TIMEOUT = "connectTimeout";
   static final String READ_TIMEOUT = "readTimeout";
@@ -129,7 +129,7 @@ public abstract class SolrTools {
 
   public static JsonArray selectDocs(String urlSelect, int connectTimeout, int readTimeout, String query, int start,
       int pageSize) throws IOException {
-    String httpUrl = urlSelect + "?wt=json&q=" + URLEncoder.encode(query, UTF_8) + "&start=" + start + "&rows=" + pageSize;
+    String httpUrl = urlSelect + "?wt=json&sort=id+asc&q=" + URLEncoder.encode(query, UTF_8) + "&start=" + start + "&rows=" + pageSize;
     JsonObject solrResponse = new JsonObject(doGetProcess(httpUrl, connectTimeout, readTimeout, null, null));
     return solrResponse.getObject("response").getArray("docs");
   }

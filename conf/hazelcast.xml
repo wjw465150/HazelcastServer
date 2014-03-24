@@ -204,7 +204,7 @@
         
         <!-- Persistence -->
         <!--
-        <map-store initial-mode="EAGER" enabled="false">
+        <map-store initial-mode="LAZY" enabled="false">
           <factory-class-name>org.hazelcast.server.persistence.MapSolrStoreFactory</factory-class-name>
           <write-delay-seconds>0</write-delay-seconds>
           <properties>
@@ -269,7 +269,7 @@
         <read-backup-data>true</read-backup-data>
         
         <!-- Persistence -->
-        <map-store initial-mode="EAGER" enabled="true">
+        <map-store initial-mode="LAZY" enabled="true">
           <factory-class-name>org.hazelcast.server.persistence.MapSolrStoreFactory</factory-class-name>
           <write-delay-seconds>0</write-delay-seconds>
           <properties>
@@ -297,7 +297,7 @@
         <read-backup-data>true</read-backup-data>
         
         <!-- Persistence -->
-        <map-store initial-mode="EAGER" enabled="true">
+        <map-store initial-mode="LAZY" enabled="true">
           <factory-class-name>org.hazelcast.server.persistence.MapSolrStoreFactory</factory-class-name>
           <write-delay-seconds>0</write-delay-seconds>
           <properties>
@@ -310,7 +310,7 @@
     </map>
     
     <!--  用户自定义Map,实现可持久化的Incr -->
-    <map name="AtomicLong">
+    <map name="test_map1">
         <in-memory-format>BINARY</in-memory-format>
         
         <backup-count>1</backup-count>
@@ -326,14 +326,14 @@
         <read-backup-data>true</read-backup-data>
         
         <!-- Persistence -->
-        <map-store initial-mode="EAGER" enabled="true">
+        <map-store initial-mode="LAZY" enabled="true">
           <factory-class-name>org.hazelcast.server.persistence.MapSolrStoreFactory</factory-class-name>
           <write-delay-seconds>0</write-delay-seconds>
           <properties>
             <property name="solrServerUrls">http://T1:8983/solr/,http://T2:18983/solr/</property>
             <property name="connectTimeout">60</property>
             <property name="readTimeout">60</property>
-            <property name="loadAll">false</property>
+            <property name="loadAll">true</property>
           </properties>
         </map-store>
     </map>
