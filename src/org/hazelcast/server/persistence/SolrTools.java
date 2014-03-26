@@ -15,6 +15,7 @@ import org.wjw.efjson.JsonObject;
 public abstract class SolrTools {
   static final String UTF_8 = "UTF-8"; //HTTPÇëÇó×Ö·û¼¯
   static final String LOGDateFormatPattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'";
+  static final SafeSimpleDateFormat solrDateFormat = new SafeSimpleDateFormat(LOGDateFormatPattern);
 
   static final String LOAD_ALL = "loadAll";
   static final int PAGE_SIZE = 100;

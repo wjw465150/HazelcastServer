@@ -269,6 +269,8 @@ public class QueueSolrStore<T> implements QueueStore<T>, Runnable {
     JsonObject doc = new JsonObject();
     doc.putString(SolrTools.F_ID, sKey);
     doc.putNumber(SolrTools.F_VERSION, 0); // =0 Don¡¯t care (normal overwrite if exists)
+    doc.putString(SolrTools.F_HZ_CTIME, SolrTools.solrDateFormat.format(new java.util.Date(System.currentTimeMillis())));
+
     doc.putString(SolrTools.F_HZ_CLASS, value.getClass().getName());
     doc.putString(SolrTools.F_HZ_DATA, JsonObject.toJson(value));
 

@@ -1,7 +1,5 @@
 package org.hazelcast.server.persistence;
 
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
@@ -277,9 +275,7 @@ public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
     }
 
     if (_mapName.startsWith(MEMCACHED_PREFIX)) { //判断memcache是否超期
-      DateFormat dateFormat = new SimpleDateFormat(SolrTools.LOGDateFormatPattern);
-
-      Date birthday = dateFormat.parse(doc.getString(SolrTools.F_HZ_CTIME));
+      Date birthday = SolrTools.solrDateFormat.parse(doc.getString(SolrTools.F_HZ_CTIME));
       if ((System.currentTimeMillis() - birthday.getTime()) >= DAY_30) { //超期30天
         solrDelete(sKey);
         return null;
@@ -297,10 +293,7 @@ public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
     JsonObject doc = new JsonObject();
     doc.putString(SolrTools.F_ID, sKey);
     doc.putNumber(SolrTools.F_VERSION, 0); // =0 Don’t care (normal overwrite if exists)
-    if (_mapName.startsWith(MEMCACHED_PREFIX)) {
-      DateFormat dateFormat = new SimpleDateFormat(SolrTools.LOGDateFormatPattern);
-      doc.putString(SolrTools.F_HZ_CTIME, dateFormat.format(new java.util.Date(System.currentTimeMillis())));
-    }
+    doc.putString(SolrTools.F_HZ_CTIME, SolrTools.solrDateFormat.format(new java.util.Date(System.currentTimeMillis())));
 
     doc.putString(SolrTools.F_HZ_CLASS, value.getClass().getName());
     doc.putString(SolrTools.F_HZ_DATA, JsonObject.toJson(value));
@@ -465,9 +458,7 @@ public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
           String sKey = doc.getString(SolrTools.F_ID).substring(prfexPos);
 
           if (_mapName.startsWith(MEMCACHED_PREFIX)) { //判断memcache是否超期
-            DateFormat dateFormat = new SimpleDateFormat(SolrTools.LOGDateFormatPattern);
-
-            Date birthday = dateFormat.parse(doc.getString(SolrTools.F_HZ_CTIME));
+            Date birthday = SolrTools.solrDateFormat.parse(doc.getString(SolrTools.F_HZ_CTIME));
             if ((System.currentTimeMillis() - birthday.getTime()) >= DAY_30) { //超期30天
               solrDelete(sKey);
               continue;
