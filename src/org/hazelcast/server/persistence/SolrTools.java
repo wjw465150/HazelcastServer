@@ -130,7 +130,8 @@ public abstract class SolrTools {
 
   public static JsonArray selectDocs(String urlSelect, int connectTimeout, int readTimeout, String query, int start,
       int pageSize) throws IOException {
-    String httpUrl = urlSelect + "?wt=json&q=" + URLEncoder.encode(query, UTF_8) + "&start=" + start + "&rows=" + pageSize;
+    //String httpUrl = urlSelect + "?wt=json&q=" + URLEncoder.encode(query, UTF_8) + "&start=" + start + "&rows=" + pageSize;
+    String httpUrl = urlSelect + "?sort=id+asc&wt=json&q=" + URLEncoder.encode(query, UTF_8) + "&start=" + start + "&rows=" + pageSize;
     JsonObject solrResponse = new JsonObject(doGetProcess(httpUrl, connectTimeout, readTimeout, null, null));
     return solrResponse.getObject("response").getArray("docs");
   }

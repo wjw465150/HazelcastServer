@@ -218,10 +218,19 @@ public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
     }
   }
 
-  private void solrDelete(String sKey) throws Exception {
-    String id = _mapName + ":" + sKey;
+  private String buildSolrId(K key) {
+    JsonObject jsonKey = new JsonObject();
+    jsonKey.putString("C", key.getClass().getName());
+    jsonKey.putString("V", JsonObject.toJson(key));
+    String id = _mapName + ":" + jsonKey.encode();
+
+    return id;
+  }
+
+  private void solrDelete(K key) throws Exception {
+
     JsonObject doc = new JsonObject();
-    doc.putObject("delete", (new JsonObject()).putString(SolrTools.F_ID, id));
+    doc.putObject("delete", (new JsonObject()).putString(SolrTools.F_ID, buildSolrId(key)));
 
     JsonObject jsonResponse = null;
     Exception ex = null;
@@ -249,8 +258,8 @@ public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
     }
   }
 
-  private V solrGet(String sKey) throws Exception {
-    String id = _mapName + ":" + sKey;
+  private V solrGet(K key) throws Exception {
+    String id = buildSolrId(key);
 
     JsonObject doc = null;
     Exception ex = null;
@@ -277,7 +286,7 @@ public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
     if (_mapName.startsWith(MEMCACHED_PREFIX)) { //判断memcache是否超期
       Date birthday = SolrTools.solrDateFormat.parse(doc.getString(SolrTools.F_HZ_CTIME));
       if ((System.currentTimeMillis() - birthday.getTime()) >= DAY_30) { //超期30天
-        solrDelete(sKey);
+        solrDelete(key);
         return null;
       }
     }
@@ -287,11 +296,9 @@ public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
     return (V) JsonObject.fromJson(sValue, Class.forName(sClass));
   }
 
-  private void solrStore(String key, V value) throws Exception {
-    String sKey = _mapName + ":" + key.toString();
-
+  private void solrStore(K key, V value) throws Exception {
     JsonObject doc = new JsonObject();
-    doc.putString(SolrTools.F_ID, sKey);
+    doc.putString(SolrTools.F_ID, buildSolrId(key));
     doc.putNumber(SolrTools.F_VERSION, 0); // =0 Don’t care (normal overwrite if exists)
     doc.putString(SolrTools.F_HZ_CTIME, SolrTools.solrDateFormat.format(new java.util.Date(System.currentTimeMillis())));
 
@@ -377,7 +384,7 @@ public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
   @Override
   public V load(K key) {
     try {
-      return solrGet(key.toString());
+      return solrGet(key);
     } catch (Exception e) {
       _logger.log(Level.SEVERE, e.getMessage(), e);
       throw new RuntimeException(e);
@@ -387,7 +394,7 @@ public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
   @Override
   public void delete(K key) {
     try {
-      solrDelete(key.toString());
+      solrDelete(key);
     } catch (Exception e) {
       _logger.log(Level.SEVERE, e.getMessage(), e);
       throw new RuntimeException(e);
@@ -404,7 +411,7 @@ public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
   @Override
   public void store(K key, V value) {
     try {
-      solrStore(key.toString(), value);
+      solrStore(key, value);
     } catch (Exception e) {
       _logger.log(Level.SEVERE, e.getMessage(), e);
       throw new RuntimeException(e);
@@ -437,10 +444,6 @@ public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
     }
 
     Set<K> set = new HashSet<K>();
-    Lock lock = _hazelcastInstance.getLock(_mapName);
-    if (lock.tryLock() == false) {
-      return null;
-    }
     try {
       boolean stop = false;
       int startIndex = 0;
@@ -455,17 +458,18 @@ public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
         JsonObject doc;
         for (int i = 0; i < docs.size(); i++) {
           doc = docs.get(i);
-          String sKey = doc.getString(SolrTools.F_ID).substring(prfexPos);
+          JsonObject jsonKey = new JsonObject(doc.getString(SolrTools.F_ID).substring(prfexPos));
+          K key = (K) JsonObject.fromJson(jsonKey.getString("V"), Class.forName(jsonKey.getString("C")));
 
           if (_mapName.startsWith(MEMCACHED_PREFIX)) { //判断memcache是否超期
             Date birthday = SolrTools.solrDateFormat.parse(doc.getString(SolrTools.F_HZ_CTIME));
             if ((System.currentTimeMillis() - birthday.getTime()) >= DAY_30) { //超期30天
-              solrDelete(sKey);
+              solrDelete(key);
               continue;
             }
           }
 
-          set.add((K) sKey);
+          set.add(key);
         }
         _logger.log(Level.INFO, "loadAllKeys():" + _mapName + ":size:" + set.size() + ":startIndex:" + startIndex);
       }
@@ -478,8 +482,6 @@ public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
     } catch (Exception e) {
       _logger.log(Level.SEVERE, e.getMessage(), e);
       throw new RuntimeException(e);
-    } finally {
-      lock.unlock();
     }
   }
 

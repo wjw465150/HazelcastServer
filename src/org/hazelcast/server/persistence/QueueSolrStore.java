@@ -202,8 +202,8 @@ public class QueueSolrStore<T> implements QueueStore<T>, Runnable {
     }
   }
 
-  private void solrDelete(String sKey) throws Exception {
-    String id = _queueName + ":" + sKey;
+  private void solrDelete(Long key) throws Exception {
+    String id = _queueName + ":" + key;
     JsonObject doc = new JsonObject();
     doc.putObject("delete", (new JsonObject()).putString(SolrTools.F_ID, id));
 
@@ -233,8 +233,8 @@ public class QueueSolrStore<T> implements QueueStore<T>, Runnable {
     }
   }
 
-  private T solrGet(String sKey) throws Exception {
-    String id = _queueName + ":" + sKey;
+  private T solrGet(Long key) throws Exception {
+    String id = _queueName + ":" + key;
 
     JsonObject doc = null;
     Exception ex = null;
@@ -263,8 +263,8 @@ public class QueueSolrStore<T> implements QueueStore<T>, Runnable {
     return (T) JsonObject.fromJson(sValue, Class.forName(sClass));
   }
 
-  private void solrStore(String key, T value) throws Exception {
-    String sKey = _queueName + ":" + key.toString();
+  private void solrStore(Long key, T value) throws Exception {
+    String sKey = _queueName + ":" + key;
 
     JsonObject doc = new JsonObject();
     doc.putString(SolrTools.F_ID, sKey);
@@ -353,7 +353,7 @@ public class QueueSolrStore<T> implements QueueStore<T>, Runnable {
   @Override
   public T load(Long key) {
     try {
-      return solrGet(key.toString());
+      return solrGet(key);
     } catch (Exception e) {
       _logger.log(Level.SEVERE, e.getMessage(), e);
       throw new RuntimeException(e);
@@ -363,7 +363,7 @@ public class QueueSolrStore<T> implements QueueStore<T>, Runnable {
   @Override
   public void delete(Long key) {
     try {
-      solrDelete(key.toString());
+      solrDelete(key);
     } catch (Exception e) {
       _logger.log(Level.SEVERE, e.getMessage(), e);
       throw new RuntimeException(e);
@@ -380,7 +380,7 @@ public class QueueSolrStore<T> implements QueueStore<T>, Runnable {
   @Override
   public void store(Long key, T value) {
     try {
-      solrStore(key.toString(), value);
+      solrStore(key, value);
     } catch (Exception e) {
       _logger.log(Level.SEVERE, e.getMessage(), e);
       throw new RuntimeException(e);
@@ -413,10 +413,6 @@ public class QueueSolrStore<T> implements QueueStore<T>, Runnable {
     }
 
     Set<Long> set = new HashSet<Long>();
-//    Lock lock = _hazelcastInstance.getLock(_mapName);
-//    if (lock.tryLock() == false) {
-//      return null;
-//    }
     try {
       boolean stop = false;
       int startIndex = 0;
@@ -440,8 +436,6 @@ public class QueueSolrStore<T> implements QueueStore<T>, Runnable {
     } catch (Exception e) {
       _logger.log(Level.SEVERE, e.getMessage(), e);
       throw new RuntimeException(e);
-//    } finally {
-//      lock.unlock();
     }
   }
 }
