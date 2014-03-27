@@ -128,12 +128,19 @@ public abstract class SolrTools {
     return solrResponse.getObject("doc");
   }
 
-  public static JsonArray selectDocs(String urlSelect, int connectTimeout, int readTimeout, String query, int start,
-      int pageSize) throws IOException {
-    //String httpUrl = urlSelect + "?wt=json&q=" + URLEncoder.encode(query, UTF_8) + "&start=" + start + "&rows=" + pageSize;
-    String httpUrl = urlSelect + "?sort=id+asc&wt=json&q=" + URLEncoder.encode(query, UTF_8) + "&start=" + start + "&rows=" + pageSize;
+  public static JsonObject selectDocs(String urlSelect, int connectTimeout, int readTimeout, String query, int start,
+      int pageSize, String cursorMark) throws IOException {
+    String httpUrl;
+    if (cursorMark == null) {
+      httpUrl = urlSelect + "?sort=id+asc&wt=json&q=" + URLEncoder.encode(query, UTF_8) + "&start=" + start + "&rows=" + pageSize;
+    } else if (cursorMark.equals("*")) {
+      httpUrl = urlSelect + "?cursorMark=*" + "&sort=id+asc&wt=json&q=" + URLEncoder.encode(query, UTF_8) + "&rows=" + pageSize;
+    } else {
+      httpUrl = urlSelect + "?cursorMark=" + URLEncoder.encode(cursorMark, UTF_8) + "&sort=id+asc&wt=json&q=" + URLEncoder.encode(query, UTF_8) + "&rows=" + pageSize;
+    }
     JsonObject solrResponse = new JsonObject(doGetProcess(httpUrl, connectTimeout, readTimeout, null, null));
-    return solrResponse.getObject("response").getArray("docs");
+
+    return solrResponse;
   }
 
   public static JsonObject solrCommit(String urlUpdate, int connectTimeout, int readTimeout)

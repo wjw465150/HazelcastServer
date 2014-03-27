@@ -358,12 +358,12 @@ public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
     }
   }
 
-  private JsonArray solrSelect(int startIndex) throws Exception {
-    JsonArray docs = null;
+  private JsonObject solrSelect(int startIndex, String cursorMark) throws Exception {
+    JsonObject solrResponse = null;
     Exception ex = null;
     for (int i = 0; i < _urlSelects.size(); i++) {
       try {
-        docs = SolrTools.selectDocs(getSolrSelectUrl(), _connectTimeout, _readTimeout, "id:" + _mapName + "\\:*", startIndex, SolrTools.PAGE_SIZE);
+        solrResponse = SolrTools.selectDocs(getSolrSelectUrl(), _connectTimeout, _readTimeout, "id:" + _mapName + "\\:*", startIndex, SolrTools.PAGE_SIZE, cursorMark);
         ex = null;
         break;
       } catch (Exception e) {
@@ -378,7 +378,7 @@ public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
       throw ex;
     }
 
-    return docs;
+    return solrResponse;
   }
 
   @Override
@@ -448,8 +448,14 @@ public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
       boolean stop = false;
       int startIndex = 0;
       int prfexPos = (_mapName + ":").length();
+      JsonObject solrResponse = null;
       while (!stop) {
-        JsonArray docs = solrSelect(startIndex);
+        if (startIndex == 0) {
+          solrResponse = solrSelect(startIndex, "*");
+        } else {
+          solrResponse = solrSelect(startIndex, solrResponse.getString("nextCursorMark"));
+        }
+        JsonArray docs = solrResponse.getObject("response").getArray("docs");
         if (docs.size() == 0) {
           break;
         }
