@@ -459,7 +459,6 @@ public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
         if (docs.size() == 0) {
           break;
         }
-        startIndex = startIndex + docs.size();
 
         JsonObject doc;
         for (int i = 0; i < docs.size(); i++) {
@@ -478,6 +477,12 @@ public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
           set.add(key);
         }
         _logger.log(Level.INFO, "loadAllKeys():" + _mapName + ":size:" + set.size() + ":startIndex:" + startIndex);
+        
+        startIndex = startIndex + docs.size();
+        int numFound = solrResponse.getObject("response").getInteger("numFound");
+        if (startIndex >= numFound) {
+          break;
+        }
       }
       if (set.size() == 0) {
         return null;

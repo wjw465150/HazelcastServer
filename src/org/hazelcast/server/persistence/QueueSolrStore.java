@@ -428,7 +428,6 @@ public class QueueSolrStore<T> implements QueueStore<T>, Runnable {
         if (docs.size() == 0) {
           break;
         }
-        startIndex = startIndex + docs.size();
 
         JsonObject doc;
         for (int i = 0; i < docs.size(); i++) {
@@ -436,6 +435,12 @@ public class QueueSolrStore<T> implements QueueStore<T>, Runnable {
           String sKey = doc.getString(SolrTools.F_ID).substring(prfexPos);
 
           set.add(Long.parseLong(sKey));
+        }
+
+        startIndex = startIndex + docs.size();
+        int numFound = solrResponse.getObject("response").getInteger("numFound");
+        if (startIndex >= numFound) {
+          break;
         }
       }
       return set;
