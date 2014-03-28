@@ -220,8 +220,13 @@ public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
 
   private String buildSolrId(K key) {
     JsonObject jsonKey = new JsonObject();
-    jsonKey.putString("C", key.getClass().getName());
-    jsonKey.putString("V", JsonObject.toJson(key));
+    if (key instanceof String) {
+      jsonKey.putString("C", "S");
+      jsonKey.putString("V", (String) key);
+    } else {
+      jsonKey.putString("C", key.getClass().getName());
+      jsonKey.putString("V", JsonObject.toJson(key));
+    }
     String id = _mapName + ":" + jsonKey.encode();
 
     return id;
@@ -443,6 +448,10 @@ public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
       return null;
     }
 
+    if (_hazelcastInstance.getCluster().getMembers().size() > 1) {
+      return null;
+    }
+
     Set<K> set = new HashSet<K>();
     try {
       boolean stop = false;
@@ -461,10 +470,15 @@ public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
         }
 
         JsonObject doc;
+        K key;
         for (int i = 0; i < docs.size(); i++) {
           doc = docs.get(i);
           JsonObject jsonKey = new JsonObject(doc.getString(SolrTools.F_ID).substring(prfexPos));
-          K key = (K) JsonObject.fromJson(jsonKey.getString("V"), Class.forName(jsonKey.getString("C")));
+          if (jsonKey.getString("C").equalsIgnoreCase("S")) {
+            key = (K) jsonKey.getString("V");
+          } else {
+            key = (K) JsonObject.fromJson(jsonKey.getString("V"), Class.forName(jsonKey.getString("C")));
+          }
 
           if (_mapName.startsWith(MEMCACHED_PREFIX)) { //ÅÐ¶ÏmemcacheÊÇ·ñ³¬ÆÚ
             Date birthday = SolrTools.solrDateFormat.parse(doc.getString(SolrTools.F_HZ_CTIME));
@@ -477,7 +491,7 @@ public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
           set.add(key);
         }
         _logger.log(Level.INFO, "loadAllKeys():" + _mapName + ":size:" + set.size() + ":startIndex:" + startIndex);
-        
+
         startIndex = startIndex + docs.size();
         int numFound = solrResponse.getObject("response").getInteger("numFound");
         if (startIndex >= numFound) {
