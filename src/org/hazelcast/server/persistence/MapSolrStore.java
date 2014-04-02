@@ -35,6 +35,7 @@ public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
   private int _connectTimeout = 60 * 1000; //连接超时
   private int _readTimeout = 60 * 1000; //读超时
 
+  private JsonArray _stateArray;
   private java.util.List<String> _urlGets;
   private java.util.List<String> _urlUpdates;
   private java.util.List<String> _urlSelects;
@@ -72,18 +73,18 @@ public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
         _loadAll = Boolean.parseBoolean(_properties.getProperty(SolrTools.LOAD_ALL));
       }
 
-      JsonArray stateArray = SolrTools.getClusterState(_solrServerUrls, _connectTimeout, _readTimeout);
-      if (stateArray == null) {
+      _stateArray = SolrTools.getClusterState(_solrServerUrls, _connectTimeout, _readTimeout);
+      if (_stateArray == null) {
         throw new RuntimeException("can not connect Solr Cloud:" + _solrServerUrls);
       } else {
-        _logger.log(Level.INFO, "Solr Cloud Status:" + stateArray.encodePrettily());
+        _logger.log(Level.INFO, "Solr Cloud Status:" + _stateArray.encodePrettily());
       }
 
-      this._urlGets = new java.util.ArrayList<String>(stateArray.size());
-      this._urlUpdates = new java.util.ArrayList<String>(stateArray.size());
-      this._urlSelects = new java.util.ArrayList<String>(stateArray.size());
-      for (int i = 0; i < stateArray.size(); i++) {
-        JsonObject jNode = stateArray.<JsonObject> get(i);
+      this._urlGets = new java.util.ArrayList<String>(_stateArray.size());
+      this._urlUpdates = new java.util.ArrayList<String>(_stateArray.size());
+      this._urlSelects = new java.util.ArrayList<String>(_stateArray.size());
+      for (int i = 0; i < _stateArray.size(); i++) {
+        JsonObject jNode = _stateArray.<JsonObject> get(i);
         if (jNode.getString("state").equalsIgnoreCase("active") || jNode.getString("state").equalsIgnoreCase("recovering")) {
           this._urlGets.add(jNode.getString("base_url") + "/get?id=");
           this._urlUpdates.add(jNode.getString("base_url") + "/update");
@@ -180,6 +181,10 @@ public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
       _logger.log(Level.WARNING, "can not connect Solr Cloud:" + _solrServerUrls);
       return;
     }
+    if(_stateArray.encode().equals(stateArray.encode())) {
+      return;
+    }
+    _stateArray = stateArray;
 
     java.util.List<String> newUrlGets = new java.util.ArrayList<String>(stateArray.size());
     java.util.List<String> newUrlUpdates = new java.util.ArrayList<String>(stateArray.size());

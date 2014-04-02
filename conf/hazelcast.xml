@@ -255,7 +255,7 @@
 
     <!--  用户自定义Map,实现可持久化的Incr -->
     <map name="AtomicLong">
-        <in-memory-format>BINARY</in-memory-format>
+        <in-memory-format>OBJECT</in-memory-format>
         
         <backup-count>1</backup-count>
         <async-backup-count>0</async-backup-count>
