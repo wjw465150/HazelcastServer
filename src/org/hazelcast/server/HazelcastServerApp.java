@@ -2,17 +2,16 @@ package org.hazelcast.server;
 
 import java.io.File;
 import java.io.IOException;
-import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.Map;
 
 import org.apache.log4j.PropertyConfigurator;
 import org.apache.log4j.xml.DOMConfigurator;
+import org.hazelcast.server.persistence.MapSolrStore;
 import org.tanukisoftware.wrapper.WrapperManager;
 
 import com.hazelcast.config.ClasspathXmlConfig;
 import com.hazelcast.config.MapConfig;
-import com.hazelcast.config.MapConfigReadOnly;
 import com.hazelcast.config.QueueConfig;
 import com.hazelcast.core.DistributedObjectEvent;
 import com.hazelcast.core.DistributedObjectListener;
@@ -21,9 +20,10 @@ import com.hazelcast.core.EntryListener;
 import com.hazelcast.core.Hazelcast;
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.IMap;
+import com.hazelcast.map.MapStoreWrapper;
 import com.hazelcast.map.proxy.MapProxyImpl;
 
-@SuppressWarnings({ "rawtypes", "unchecked" })
+@SuppressWarnings({ "rawtypes" })
 public class HazelcastServerApp<K, V> implements EntryListener<K, V>, DistributedObjectListener {
   public final String CONF_NAME = "hazelcast.xml"; //配置文件
   public static final String DB_CHARSET = "UTF-8"; //数据库字符集
@@ -170,6 +170,19 @@ public class HazelcastServerApp<K, V> implements EntryListener<K, V>, Distribute
   public void entryEvicted(EntryEvent<K, V> event) {
     if (event.getValue() instanceof com.hazelcast.ascii.memcache.MemcacheEntry) {
       _hazelcastInstance.getMap(event.getName()).delete(event.getKey());
+    } else {
+      try {
+        MapProxyImpl imap = (MapProxyImpl) _hazelcastInstance.getMap(event.getName());
+        MapStoreWrapper mapStoreWrapper = imap.getService().getMapContainer(event.getName()).getStore();
+        if (mapStoreWrapper != null) {
+          MapSolrStore mapStore = (MapSolrStore) mapStoreWrapper.getMapStore();
+          if (mapStore.isDeleteOnEvict()) {
+            mapStoreWrapper.delete(event.getKey());
+          }
+        }
+      } catch (Exception ex) {
+        ex.printStackTrace();
+      }
     }
   }
 
@@ -179,13 +192,11 @@ public class HazelcastServerApp<K, V> implements EntryListener<K, V>, Distribute
       if (event.getDistributedObject() instanceof MapProxyImpl) {
         MapProxyImpl imap = (MapProxyImpl) event.getDistributedObject();
 
-        Field field = imap.getClass().getSuperclass().getDeclaredField("mapConfig");
-        field.setAccessible(true);
-        MapConfigReadOnly mapConfig = (MapConfigReadOnly) field.get(imap);
-
-        if (mapConfig != null && mapConfig.getMapStoreConfig() != null && mapConfig.getMapStoreConfig().isEnabled()) {
-          String idListener = imap.addEntryListener(this, true);
+        MapStoreWrapper mapStoreWrapper = imap.getService().getMapContainer(imap.getName()).getStore();
+        if (mapStoreWrapper != null && mapStoreWrapper.isEnabled()) {
+          String idListener = imap.addEntryListener(this, false);
           _mapEntryListener.put(imap.getName(), idListener);
+          System.out.println("addEntryListener for:" + imap.getName());
         }
       }
     } catch (Exception ex) {

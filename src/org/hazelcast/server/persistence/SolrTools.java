@@ -17,11 +17,13 @@ public abstract class SolrTools {
   static final String LOGDateFormatPattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'";
   static final SafeSimpleDateFormat solrDateFormat = new SafeSimpleDateFormat(LOGDateFormatPattern);
 
-  static final String LOAD_ALL = "loadAll";
   static final int PAGE_SIZE = 100;
-  static final String SOLR_SERVER_URLS = "solrServerUrls";
-  static final String CONNECT_TIMEOUT = "connectTimeout";
-  static final String READ_TIMEOUT = "readTimeout";
+  
+  public static final String SOLR_SERVER_URLS = "solrServerUrls";
+  public static final String CONNECT_TIMEOUT = "connectTimeout";
+  public static final String READ_TIMEOUT = "readTimeout";
+  public static final String LOAD_ALL = "loadAll";
+  public static final String DELETE_ON_EVICT = "deleteOnEvict";
 
   static final String F_ID = "id";
   static final String F_VERSION = "_version_";

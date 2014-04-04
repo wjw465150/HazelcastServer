@@ -205,7 +205,7 @@
         
         <!-- Persistence -->
         <!--
-        <map-store initial-mode="EAGER" enabled="false">
+        <map-store initial-mode="EAGER" enabled="true">
           <factory-class-name>org.hazelcast.server.persistence.MapSolrStoreFactory</factory-class-name>
           <write-delay-seconds>0</write-delay-seconds>
           <properties>
@@ -213,6 +213,7 @@
             <property name="connectTimeout">60</property>
             <property name="readTimeout">60</property>
             <property name="loadAll">false</property>
+            <property name="deleteOnEvict">false</property>
           </properties>
         </map-store>
         -->
@@ -278,6 +279,7 @@
             <property name="connectTimeout">60</property>
             <property name="readTimeout">60</property>
             <property name="loadAll">true</property>
+            <property name="deleteOnEvict">false</property>
           </properties>
         </map-store>
     </map>

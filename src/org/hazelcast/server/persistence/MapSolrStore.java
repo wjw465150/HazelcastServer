@@ -39,6 +39,7 @@ public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
   private java.util.List<String> _urlGets;
   private java.util.List<String> _urlUpdates;
   private java.util.List<String> _urlSelects;
+  private boolean _deleteOnEvict = false; //是否允许发生Evict时删除持久化里的数据
   private boolean _loadAll = false; //是否在初始化时就加载数据
 
   private HazelcastInstance _hazelcastInstance;
@@ -68,6 +69,9 @@ public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
       }
       if (_properties.getProperty(SolrTools.READ_TIMEOUT) != null) {
         _readTimeout = Integer.parseInt(_properties.getProperty(SolrTools.READ_TIMEOUT)) * 1000;
+      }
+      if (_properties.getProperty(SolrTools.DELETE_ON_EVICT) != null) {
+        _deleteOnEvict = Boolean.parseBoolean(_properties.getProperty(SolrTools.DELETE_ON_EVICT));
       }
       if (_properties.getProperty(SolrTools.LOAD_ALL) != null) {
         _loadAll = Boolean.parseBoolean(_properties.getProperty(SolrTools.LOAD_ALL));
@@ -117,6 +121,10 @@ public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
   public void destroy() {
     _scheduleSync.shutdown();
     _logger.log(Level.INFO, this.getClass().getCanonicalName() + ":" + _mapName + ":destroy()完成!");
+  }
+
+  public boolean isDeleteOnEvict() {
+    return _deleteOnEvict;
   }
 
   public String getSolrGetUrl() {
@@ -181,7 +189,7 @@ public class MapSolrStore<K, V> implements MapLoaderLifecycleSupport, MapStore<K
       _logger.log(Level.WARNING, "can not connect Solr Cloud:" + _solrServerUrls);
       return;
     }
-    if(_stateArray.encode().equals(stateArray.encode())) {
+    if (_stateArray.encode().equals(stateArray.encode())) {
       return;
     }
     _stateArray = stateArray;
