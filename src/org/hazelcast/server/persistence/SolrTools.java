@@ -18,8 +18,9 @@ public abstract class SolrTools {
   static final SafeSimpleDateFormat solrDateFormat = new SafeSimpleDateFormat(LOGDateFormatPattern);
 
   static final int PAGE_SIZE = 100;
-  
+
   public static final String SOLR_SERVER_URLS = "solrServerUrls";
+  public static final String CORE_NAME = "coreName";
   public static final String CONNECT_TIMEOUT = "connectTimeout";
   public static final String READ_TIMEOUT = "readTimeout";
   public static final String LOAD_ALL = "loadAll";
@@ -61,7 +62,7 @@ public abstract class SolrTools {
   //  ,{"state":"active","base_url":"http://192.168.0.191:8983/solr","core":"collection1","node_name":"192.168.0.191:8983_solr"}
   //  ]
   //´íÎó·µ»Ønull
-  public static JsonArray getClusterState(String solrServers, int connectTimeout, int readTimeout) {
+  public static JsonArray getClusterState(String solrServers, String coreName, int connectTimeout, int readTimeout) {
     String[] urlArray = solrServers.split(",");
 
     String clusterstate;
@@ -80,7 +81,7 @@ public abstract class SolrTools {
         String data = jsonBody.getObject("znode").getString("data");
         JsonObject jsonData = new JsonObject(data);
 
-        JsonObject shards = jsonData.getObject("collection1").getObject("shards");
+        JsonObject shards = jsonData.getObject(coreName).getObject("shards");
         int size = shards.size();
         result = new JsonArray();
         for (int j = 0; j < size; j++) {
@@ -96,6 +97,7 @@ public abstract class SolrTools {
 
         break;
       } catch (Exception e) {
+        e.printStackTrace();
         result = null;
       }
     }
@@ -210,12 +212,12 @@ public abstract class SolrTools {
         }
       }
 
-      //      if (conn != null) {
-      //        try {
-      //          conn.disconnect();
-      //        } catch (Exception ex) {
-      //        }
-      //      }
+      if (conn != null) {
+        try {
+          conn.disconnect();
+        } catch (Exception ex) {
+        }
+      }
     }
   }
 
@@ -293,12 +295,12 @@ public abstract class SolrTools {
         }
       }
 
-      //      if (conn != null) {
-      //        try {
-      //          conn.disconnect();
-      //        } catch (Exception ex) {
-      //        }
-      //      }
+      if (conn != null) {
+        try {
+          conn.disconnect();
+        } catch (Exception ex) {
+        }
+      }
     }
 
   }

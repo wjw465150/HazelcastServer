@@ -26,6 +26,7 @@ public class QueueSolrStore<T> implements QueueStore<T>, Runnable {
   private final ILogger _logger = Logger.getLogger(QueueSolrStore.class.getName());
 
   private String _solrServerUrls;
+  private String _coreName = "collection1";
   private int _connectTimeout = 60 * 1000; //连接超时
   private int _readTimeout = 60 * 1000; //读超时
 
@@ -56,6 +57,9 @@ public class QueueSolrStore<T> implements QueueStore<T>, Runnable {
         throw new RuntimeException("propertie Solr '" + SolrTools.SOLR_SERVER_URLS + "' Can not null");
       }
       _solrServerUrls = _properties.getProperty(SolrTools.SOLR_SERVER_URLS);
+      if (_properties.getProperty(SolrTools.CORE_NAME) != null) {
+        _coreName = _properties.getProperty(SolrTools.CORE_NAME);
+      }
       if (_properties.getProperty(SolrTools.CONNECT_TIMEOUT) != null) {
         _connectTimeout = Integer.parseInt(_properties.getProperty(SolrTools.CONNECT_TIMEOUT)) * 1000;
       }
@@ -66,9 +70,9 @@ public class QueueSolrStore<T> implements QueueStore<T>, Runnable {
         _loadAll = Boolean.parseBoolean(_properties.getProperty(SolrTools.LOAD_ALL));
       }
 
-      _stateArray = SolrTools.getClusterState(_solrServerUrls, _connectTimeout, _readTimeout);
+      _stateArray = SolrTools.getClusterState(_solrServerUrls, _coreName, _connectTimeout, _readTimeout);
       if (_stateArray == null) {
-        throw new RuntimeException("can not connect Solr Cloud:" + _solrServerUrls);
+        throw new RuntimeException("can not connect Solr Cloud:" + "coreName:" + _coreName + "URLS:" + _solrServerUrls);
       } else {
         _logger.log(Level.INFO, "Solr Cloud Status:" + _stateArray.encodePrettily());
       }
@@ -79,9 +83,9 @@ public class QueueSolrStore<T> implements QueueStore<T>, Runnable {
       for (int i = 0; i < _stateArray.size(); i++) {
         JsonObject jNode = _stateArray.<JsonObject> get(i);
         if (jNode.getString("state").equalsIgnoreCase("active") || jNode.getString("state").equalsIgnoreCase("recovering")) {
-          this._urlGets.add(jNode.getString("base_url") + "/get?id=");
-          this._urlUpdates.add(jNode.getString("base_url") + "/update");
-          this._urlSelects.add(jNode.getString("base_url") + "/select");
+          this._urlGets.add(jNode.getString("base_url") + "/" + _coreName + "/get?id=");
+          this._urlUpdates.add(jNode.getString("base_url") + "/" + _coreName + "/update");
+          this._urlSelects.add(jNode.getString("base_url") + "/" + _coreName + "/select");
         }
       }
 
@@ -160,12 +164,12 @@ public class QueueSolrStore<T> implements QueueStore<T>, Runnable {
   @Override
   //刷新Solr集群状态的Scheduled
   public void run() {
-    JsonArray stateArray = SolrTools.getClusterState(_solrServerUrls, _connectTimeout, _readTimeout);
+    JsonArray stateArray = SolrTools.getClusterState(_solrServerUrls, _coreName, _connectTimeout, _readTimeout);
     if (stateArray == null) {
       _logger.log(Level.WARNING, "can not connect Solr Cloud:" + _solrServerUrls);
       return;
     }
-    if(_stateArray.encode().equals(stateArray.encode())) {
+    if (_stateArray.encode().equals(stateArray.encode())) {
       return;
     }
     _stateArray = stateArray;
@@ -176,9 +180,9 @@ public class QueueSolrStore<T> implements QueueStore<T>, Runnable {
     for (int i = 0; i < stateArray.size(); i++) {
       JsonObject jj = stateArray.<JsonObject> get(i);
       if (jj.getString("state").equalsIgnoreCase("active") || jj.getString("state").equalsIgnoreCase("recovering")) {
-        newUrlGets.add(jj.getString("base_url") + "/get?id=");
-        newUrlUpdates.add(jj.getString("base_url") + "/update");
-        newUrlSelects.add(jj.getString("base_url") + "/select");
+        newUrlGets.add(jj.getString("base_url") + "/" + _coreName + "/get?id=");
+        newUrlUpdates.add(jj.getString("base_url") + "/" + _coreName + "/update");
+        newUrlSelects.add(jj.getString("base_url") + "/" + _coreName + "/select");
       }
     }
 
