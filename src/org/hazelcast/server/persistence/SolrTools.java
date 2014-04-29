@@ -7,6 +7,9 @@ import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 import org.wjw.efjson.JsonArray;
@@ -63,15 +66,16 @@ public abstract class SolrTools {
   //  ]
   //´íÎó·µ»Ønull
   public static JsonArray getClusterState(String solrServers, String coreName, int connectTimeout, int readTimeout) {
-    String[] urlArray = solrServers.split(",");
+    List<String> urlArray = Arrays.asList(solrServers.split(","));
+    Collections.shuffle(urlArray);
 
     String clusterstate;
     JsonArray result = null;
-    for (int i = 0; i < urlArray.length; i++) {
-      if (urlArray[i].endsWith("/")) {
-        clusterstate = urlArray[i] + "zookeeper?wt=json&detail=true&path=%2Fclusterstate.json&_=" + System.currentTimeMillis();
+    for (int i = 0; i < urlArray.size(); i++) {
+      if (urlArray.get(i).endsWith("/")) {
+        clusterstate = urlArray.get(i) + "zookeeper?wt=json&detail=true&path=%2Fclusterstate.json&_=" + System.currentTimeMillis();
       } else {
-        clusterstate = urlArray[i] + "/zookeeper?wt=json&detail=true&path=%2Fclusterstate.json&_=" + System.currentTimeMillis();
+        clusterstate = urlArray.get(i) + "/zookeeper?wt=json&detail=true&path=%2Fclusterstate.json&_=" + System.currentTimeMillis();
       }
 
       try {
